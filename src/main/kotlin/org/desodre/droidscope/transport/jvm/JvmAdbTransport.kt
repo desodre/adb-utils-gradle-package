@@ -27,7 +27,7 @@ class JvmAdbTransport(
     private val socket = Socket()
 
     override suspend fun connect() = io {
-        socket.soTimeout = timeoutMillis
+        socket.soTimeout = 0
         socket.connect(InetSocketAddress(host, port), timeoutMillis)
     }
 

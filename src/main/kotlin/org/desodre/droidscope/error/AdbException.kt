@@ -16,3 +16,5 @@ open class DeviceUnavailableException(val serial: DeviceSerial, val state: Devic
 class DeviceUnauthorizedException(serial: DeviceSerial, cause: Throwable? = null) : DeviceUnavailableException(serial, DeviceState.UNAUTHORIZED, cause)
 class DeviceOfflineException(serial: DeviceSerial, cause: Throwable? = null) : DeviceUnavailableException(serial, DeviceState.OFFLINE, cause)
 class ShellOutputLimitException(val maxBytes: Int) : AdbException("Shell output exceeded $maxBytes bytes")
+class SyncTransferLimitException(val maxBytes: Int) : AdbException("SYNC transfer exceeded $maxBytes bytes")
+class PackageOperationException(message: String) : AdbException(message)

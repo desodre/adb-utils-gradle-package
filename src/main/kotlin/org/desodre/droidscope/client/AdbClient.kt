@@ -3,6 +3,8 @@ package org.desodre.droidscope.client
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.desodre.droidscope.error.*
 import org.desodre.droidscope.model.*
 import org.desodre.droidscope.protocol.*
@@ -33,6 +35,14 @@ class AdbClient(
         DeviceListParser.parse(protocol.readPayload())
     }
 
+    /** Cold stream. Every collector owns and closes an independent tracking connection. */
+    fun trackDevices(): Flow<List<DeviceInfo>> = flow {
+        streamingSession { protocol ->
+            protocol.request("host:track-devices-l")
+            while (true) emit(DeviceListParser.parse(AdbCodec.decodeText(protocol.readPayloadBytes())))
+        }
+    }
+
     /** Without a serial, selects the sole DEVICE entry. Other states are available in devices(). */
     suspend fun device(serial: DeviceSerial? = null): AdbDevice {
         val detected = devices()
@@ -56,23 +66,33 @@ class AdbClient(
     }
 
     internal suspend fun <T> session(block: suspend (AdbProtocol) -> T): T {
-        val result = withTimeoutOrNull(timeoutMillis.toLong()) {
-            val transport = transportFactory()
-            var failure: Throwable? = null
-            try {
-                transport.connect()
-                Result.success(block(AdbProtocol(transport)))
-            } catch (error: Throwable) {
-                failure = error
-                throw error
-            } finally {
-                withContext(NonCancellable) {
-                    try { transport.close() } catch (closeError: Throwable) {
-                        if (failure != null) failure.addSuppressed(closeError) else throw closeError
-                    }
+        return withTimeoutOrNull(timeoutMillis.toLong()) { managedSession(block) } ?: throw AdbTimeoutException()
+    }
+
+    internal suspend fun <T> streamingSession(block: suspend (AdbProtocol) -> T): T = managedSession(block)
+
+    internal suspend fun hostPayload(service: String): String = session { protocol ->
+        protocol.request(service)
+        protocol.readPayload()
+    }
+
+    internal suspend fun hostCommand(service: String) = session { it.request(service) }
+
+    private suspend fun <T> managedSession(block: suspend (AdbProtocol) -> T): T {
+        val transport = transportFactory()
+        var failure: Throwable? = null
+        try {
+            transport.connect()
+            return block(AdbProtocol(transport))
+        } catch (error: Throwable) {
+            failure = error
+            throw error
+        } finally {
+            withContext(NonCancellable) {
+                try { transport.close() } catch (closeError: Throwable) {
+                    if (failure != null) failure.addSuppressed(closeError) else throw closeError
                 }
             }
-        } ?: throw AdbTimeoutException()
-        return result.getOrThrow()
+        }
     }
 }

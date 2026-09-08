@@ -15,6 +15,12 @@ internal class AdbProtocol(private val transport: AdbTransport) {
 
     suspend fun readPayload(): String = AdbCodec.decodeText(readExactly(AdbCodec.decodeLength(readExactly(4))))
 
+    suspend fun readPayloadBytes(): ByteArray = readExactly(AdbCodec.decodeLength(readExactly(4)))
+
+    suspend fun writeRaw(data: ByteArray) = transport.write(data)
+
+    suspend fun readRaw(maxBytes: Int): ByteArray = transport.read(maxBytes)
+
     suspend fun readShellOutput(maxBytes: Int): String {
         val chunks = mutableListOf<ByteArray>()
         var size = 0
@@ -34,7 +40,7 @@ internal class AdbProtocol(private val transport: AdbTransport) {
         return AdbCodec.decodeText(output)
     }
 
-    private suspend fun readExactly(size: Int): ByteArray {
+    suspend fun readExactly(size: Int): ByteArray {
         val result = ByteArray(size)
         var offset = 0
         while (offset < size) {
