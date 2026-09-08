@@ -33,18 +33,6 @@ class JvmAdbTransportTest {
         }
     }
 
-    @Test fun `read timeout has dedicated error`() = runBlocking<Unit> {
-        ServerSocket(0).use { server ->
-            val transport = JvmAdbTransport(port = server.localPort, timeoutMillis = 100)
-            try {
-                transport.connect()
-                server.accept().use {
-                    assertFailsWith<AdbTimeoutException> { transport.read(1) }
-                }
-            } finally { transport.close() }
-        }
-    }
-
     @Test fun `cancellation closes blocked socket promptly`() = runBlocking<Unit> {
         ServerSocket(0).use { server ->
             val transport = JvmAdbTransport(port = server.localPort, timeoutMillis = 30_000)

@@ -5,14 +5,15 @@ import kotlin.test.*
 import org.desodre.droidscope.error.*
 import org.desodre.droidscope.transport.AdbTransport
 
-internal class FakeTransport(response: String, private val chunkSize: Int = 1) : AdbTransport {
-    private val bytes = response.encodeToByteArray()
+internal class FakeTransport(private val bytes: ByteArray, private val chunkSize: Int = 1) : AdbTransport {
+    constructor(response: String, chunkSize: Int = 1) : this(response.encodeToByteArray(), chunkSize)
     private var offset = 0
     val requests = mutableListOf<String>()
+    val writes = mutableListOf<ByteArray>()
     var closed = false
     override suspend fun connect() = Unit
     override suspend fun close() { closed = true }
-    override suspend fun write(data: ByteArray) { requests += data.decodeToString() }
+    override suspend fun write(data: ByteArray) { writes += data; requests += data.decodeToString() }
     override suspend fun read(maxBytes: Int): ByteArray {
         val end = minOf(offset + minOf(chunkSize, maxBytes), bytes.size)
         return bytes.copyOfRange(offset, end).also { offset = end }

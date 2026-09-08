@@ -74,4 +74,18 @@ class AdbDeviceTest {
             assertTrue(transport.closed)
         }
     }
+
+    @Test fun `shell v2 separates streams and exit code across partial reads`() = runBlocking<Unit> {
+        fun frame(id: Int, text: String) = buildList<Byte> {
+            val bytes = text.encodeToByteArray()
+            add(id.toByte()); repeat(4) { add((bytes.size ushr (it * 8)).toByte()) }; addAll(bytes.toList())
+        }.toByteArray()
+        val response = "OKAYOKAY".encodeToByteArray() + frame(1, "out") + frame(2, "err") + frame(3, "\u0007")
+        val transport = FakeTransport(response.decodeToString(), chunkSize = 1)
+        val result = AdbDevice(AdbClient(transportFactory = { transport }), DeviceSerial("a")).shellV2("test")
+        assertEquals("out", result.stdout)
+        assertEquals("err", result.stderr)
+        assertEquals(7, result.exitCode)
+        assertEquals(listOf("0010host:transport:a", "0011shell,v2,raw:test"), transport.requests)
+    }
 }
