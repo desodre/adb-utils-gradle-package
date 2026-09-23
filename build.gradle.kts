@@ -1,4 +1,5 @@
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+import org.gradle.api.tasks.GradleBuild
 
 plugins {
     kotlin("jvm") version "2.4.10"
@@ -10,7 +11,7 @@ plugins {
 }
 
 group = "io.github.desodre"
-version = "0.2.0"
+version = file("VERSION").readText().trim()
 
 val artifactName = "adb-utils"
 val projectUrl = "https://github.com/desodre/adb-utils-gradle-package"
@@ -41,7 +42,12 @@ tasks.register<Test>("adbTest") {
     onlyIf { providers.gradleProperty("adbTest").orNull == "true" }
 }
 
-kotlin { jvmToolchain(17) }
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+kotlin {
+    jvmToolchain(17)
+    explicitApi()
+    abiValidation()
+}
 java { withSourcesJar() }
 tasks.test { useJUnitPlatform() }
 
@@ -182,6 +188,23 @@ val validatePublication = tasks.register("validatePublication") {
     doLast { validateMavenRepository(publicationCheckRepository.get().asFile, requireSignatures = false) }
 }
 
+val validateReleaseMetadata = tasks.register("validateReleaseMetadata") {
+    group = "verification"
+    description = "Checks VERSION and CHANGELOG metadata used by tagged releases"
+    inputs.file(layout.projectDirectory.file("VERSION"))
+    inputs.file(layout.projectDirectory.file("CHANGELOG.md"))
+    doLast {
+        val releaseVersion = project.version.toString()
+        check(releaseVersion.matches(Regex("(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)"))) {
+            "VERSION must contain a stable Semantic Versioning value, received: $releaseVersion"
+        }
+        val changelogHeading = Regex("(?m)^## ${Regex.escape(releaseVersion)}(?:\\s|$)")
+        check(changelogHeading.containsMatchIn(layout.projectDirectory.file("CHANGELOG.md").asFile.readText())) {
+            "CHANGELOG.md is missing a section for $releaseVersion"
+        }
+    }
+}
+
 val validateReleaseBundle = tasks.register("validateReleaseBundle") {
     group = "publishing"
     description = "Builds and validates a signed Maven Central release repository"
@@ -192,7 +215,7 @@ val validateReleaseBundle = tasks.register("validateReleaseBundle") {
 tasks.register<Zip>("releaseBundle") {
     group = "publishing"
     description = "Creates the signed archive that can be uploaded to Maven Central"
-    dependsOn(validateReleaseBundle)
+    dependsOn(validateReleaseBundle, validateReleaseMetadata)
     archiveFileName.set("$artifactName-${project.version}-central-bundle.zip")
     destinationDirectory.set(layout.buildDirectory.dir("central-bundle"))
     isPreserveFileTimestamps = false
@@ -201,4 +224,16 @@ tasks.register<Zip>("releaseBundle") {
         exclude("**/maven-metadata.xml*")
         exclude("**/*.asc.md5", "**/*.asc.sha1", "**/*.asc.sha256", "**/*.asc.sha512")
     }
+}
+
+tasks.register<GradleBuild>("consumerTest") {
+    group = "verification"
+    description = "Builds the standalone Kotlin/JVM sample against the generated Maven repository"
+    dependsOn(validatePublication)
+    dir = file("samples/kotlin-jvm")
+    tasks = listOf("clean", "test")
+    startParameter.projectProperties = mapOf(
+        "adbUtilsRepository" to publicationCheckRepository.get().asFile.absolutePath,
+        "adbUtilsVersion" to project.version.toString(),
+    )
 }

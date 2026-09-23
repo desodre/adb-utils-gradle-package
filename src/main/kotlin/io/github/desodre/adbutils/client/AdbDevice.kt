@@ -6,15 +6,28 @@ import io.github.desodre.adbutils.model.ShellResult
 import io.github.desodre.adbutils.protocol.ShellV2Protocol
 import io.github.desodre.adbutils.protocol.SyncProtocol
 import io.github.desodre.adbutils.model.*
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.FileTime
+import java.nio.file.attribute.PosixFilePermission
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 
 /** A serial-bound handle, not a persistent connection or a guarantee that the device remains online. */
-class AdbDevice internal constructor(private val client: AdbClient, val serial: DeviceSerial) {
+public class AdbDevice internal constructor(private val client: AdbClient, public val serial: DeviceSerial) {
     /**
      * Executes a non-interactive legacy shell command as supplied, including shell metacharacters.
      * Returns UTF-8 output up to EOF; legacy shell provides no exit code or separate stderr.
      * Do not interpolate untrusted input. The client's timeout applies to the entire session.
      */
-    suspend fun shell(command: String, maxOutputBytes: Int = 16 * 1024 * 1024): String {
+    public suspend fun shell(command: String, maxOutputBytes: Int = 16 * 1024 * 1024): String {
         validateCommand(command, maxOutputBytes)
         return client.session { protocol ->
             selectTransport(protocol)
@@ -24,7 +37,7 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
     }
 
     /** Executes shell v2 and returns separated UTF-8 streams and the remote exit code. */
-    suspend fun shellV2(command: String, maxOutputBytes: Int = 16 * 1024 * 1024): ShellResult {
+    public suspend fun shellV2(command: String, maxOutputBytes: Int = 16 * 1024 * 1024): ShellResult {
         validateCommand(command, maxOutputBytes)
         return client.session { protocol ->
             selectTransport(protocol)
@@ -34,29 +47,143 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
     }
 
     /** Reads one property without caching. An absent property returns an empty string. */
-    suspend fun getprop(name: String): String {
+    public suspend fun getprop(name: String): String {
         require(name.matches(Regex("[A-Za-z0-9_][A-Za-z0-9_.-]*"))) { "Invalid Android property name" }
         return shell("getprop '$name'").trimEnd('\r', '\n')
     }
 
-    suspend fun stat(path: String): RemoteFileStat = sync { it.stat(validatePath(path)) }
-    suspend fun list(path: String): List<RemoteFile> = sync { it.list(validatePath(path)) }
-    suspend fun pull(path: String, maxBytes: Int = 64 * 1024 * 1024): ByteArray {
+    public suspend fun stat(path: String): RemoteFileStat = sync { it.stat(validatePath(path)) }
+    public suspend fun list(path: String): List<RemoteFile> = sync { it.list(validatePath(path)) }
+    public suspend fun pull(path: String, maxBytes: Int = 64 * 1024 * 1024): ByteArray {
         require(maxBytes > 0)
         return sync { it.pull(validatePath(path), maxBytes) }
     }
-    suspend fun push(
+
+    /**
+     * Streams a remote file without accumulating it in memory. Collection owns one ADB connection,
+     * and cancellation closes that connection. Every emitted byte array is an independent chunk.
+     */
+    public fun pullChunks(
+        remotePath: String,
+        maxBytes: Long = Long.MAX_VALUE,
+    ): Flow<ByteArray> {
+        val path = validatePath(remotePath)
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        return flow {
+            client.streamingSession { protocol ->
+                selectTransport(protocol)
+                protocol.request("sync:")
+                SyncProtocol(protocol).pull(path, maxBytes) { emit(it) }
+            }
+        }
+    }
+
+    /**
+     * Downloads a remote file through a temporary sibling file and atomically replaces [destination]
+     * when supported. Remote modification time and POSIX permissions are preserved by default.
+     */
+    public suspend fun pullTo(
+        remotePath: String,
+        destination: Path,
+        maxBytes: Long = Long.MAX_VALUE,
+        preserveAttributes: Boolean = true,
+    ): SyncTransferResult = withContext(Dispatchers.IO) {
+        val path = validatePath(remotePath)
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val absoluteDestination = destination.toAbsolutePath()
+        val parent = requireNotNull(absoluteDestination.parent) { "Destination must have a parent directory" }
+        val temporary = Files.createTempFile(parent, ".${absoluteDestination.fileName}.", ".part")
+        try {
+            var remoteStat: RemoteFileStat? = null
+            val transferred = client.streamingSession { protocol ->
+                selectTransport(protocol)
+                protocol.request("sync:")
+                val sync = SyncProtocol(protocol)
+                remoteStat = sync.stat(path)
+                Files.newOutputStream(temporary, StandardOpenOption.TRUNCATE_EXISTING).buffered().use { output ->
+                    sync.pull(path, maxBytes) { output.write(it) }
+                }
+            }
+            moveReplacing(temporary, absoluteDestination)
+            if (preserveAttributes) applyRemoteAttributes(absoluteDestination, requireNotNull(remoteStat))
+            SyncTransferResult(transferred)
+        } catch (error: Throwable) {
+            Files.deleteIfExists(temporary)
+            throw error
+        }
+    }
+
+    public suspend fun push(
         data: ByteArray,
         remotePath: String,
         mode: Int = 0b110100100,
         modifiedAtEpochSeconds: Long = 0,
-    ) {
+    ): Unit {
         require(mode in 0..0x1ff && modifiedAtEpochSeconds in 0..0xffffffffL)
         sync { it.push(validatePath(remotePath), data, mode, modifiedAtEpochSeconds) }
     }
 
+    /**
+     * Uploads chunks lazily and emits cumulative progress after every SYNC data frame. Large input
+     * chunks are split into protocol-safe 64 KiB frames; empty chunks are ignored.
+     */
+    public fun pushChunks(
+        chunks: Flow<ByteArray>,
+        remotePath: String,
+        mode: Int = DEFAULT_FILE_MODE,
+        modifiedAtEpochSeconds: Long = 0,
+        maxBytes: Long = Long.MAX_VALUE,
+    ): Flow<SyncTransferProgress> {
+        val path = validatePath(remotePath)
+        validatePushArguments(mode, modifiedAtEpochSeconds, maxBytes)
+        return flow {
+            client.streamingSession { protocol ->
+                selectTransport(protocol)
+                protocol.request("sync:")
+                SyncProtocol(protocol).push(path, chunks, mode, modifiedAtEpochSeconds, maxBytes) {
+                    emit(SyncTransferProgress(it))
+                }
+            }
+        }
+    }
+
+    /** Uploads [source] without loading it into memory and derives mode and timestamp when omitted. */
+    public suspend fun push(
+        source: Path,
+        remotePath: String,
+        mode: Int? = null,
+        modifiedAtEpochSeconds: Long? = null,
+        maxBytes: Long = Long.MAX_VALUE,
+        chunkSize: Int = SyncProtocol.MAX_DATA,
+    ): SyncTransferResult {
+        require(chunkSize in 1..SyncProtocol.MAX_DATA) { "chunkSize must be in 1..${SyncProtocol.MAX_DATA}" }
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val (resolvedMode, resolvedModifiedAt) = withContext(Dispatchers.IO) {
+            require(Files.isRegularFile(source)) { "Source must be a regular file: $source" }
+            val size = Files.size(source)
+            require(size <= maxBytes) { "Source contains $size bytes, exceeding maxBytes=$maxBytes" }
+            (mode ?: localMode(source)) to (modifiedAtEpochSeconds
+                ?: (Files.getLastModifiedTime(source).toMillis() / 1_000).coerceIn(0, 0xffffffffL))
+        }
+        val chunks = flow {
+            Files.newInputStream(source).buffered().use { input ->
+                val buffer = ByteArray(chunkSize)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (count > 0) emit(buffer.copyOf(count))
+                }
+            }
+        }.flowOn(Dispatchers.IO)
+        var transferred = 0L
+        pushChunks(chunks, remotePath, resolvedMode, resolvedModifiedAt, maxBytes).collect {
+            transferred = it.bytesTransferred
+        }
+        return SyncTransferResult(transferred)
+    }
+
     /** Uploads an APK through SYNC, invokes Package Manager and removes the temporary file. */
-    suspend fun install(apk: ByteArray, options: InstallOptions = InstallOptions()): InstallResult {
+    public suspend fun install(apk: ByteArray, options: InstallOptions = InstallOptions()): InstallResult {
         require(apk.isNotEmpty()) { "APK cannot be empty" }
         val remote = "/data/local/tmp/adb-utils-${apk.size}-${apk.contentHashCode().toUInt()}.apk"
         push(apk, remote)
@@ -84,7 +211,7 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
         }
     }
 
-    suspend fun uninstall(packageName: String, keepData: Boolean = false) {
+    public suspend fun uninstall(packageName: String, keepData: Boolean = false): Unit {
         require(packageName.matches(Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+"))) { "Invalid package name" }
         val result = shellV2("pm uninstall ${if (keepData) "-k " else ""}'$packageName'")
         val message = (result.stdout + result.stderr).trim()
@@ -93,27 +220,27 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
         }
     }
 
-    suspend fun forward(local: TcpPort, remote: TcpPort, noRebind: Boolean = false) {
+    public suspend fun forward(local: TcpPort, remote: TcpPort, noRebind: Boolean = false): Unit {
         client.hostCommand("host-serial:$serial:forward:${if (noRebind) "norebind:" else ""}$local;$remote")
     }
 
-    suspend fun removeForward(local: TcpPort) {
+    public suspend fun removeForward(local: TcpPort): Unit {
         client.hostCommand("host-serial:$serial:killforward:$local")
     }
 
-    suspend fun listForwards(): List<PortForward> = client.hostPayload("host:list-forward")
+    public suspend fun listForwards(): List<PortForward> = client.hostPayload("host:list-forward")
         .lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
             val fields = line.split(Regex("\\s+"))
             if (fields.size != 3 || fields[0] != serial.value) null else PortForward(serial, parseTcp(fields[1]), parseTcp(fields[2]))
         }.toList()
 
-    suspend fun reverse(remote: TcpPort, local: TcpPort, noRebind: Boolean = false) = deviceCommand(
+    public suspend fun reverse(remote: TcpPort, local: TcpPort, noRebind: Boolean = false): Unit = deviceCommand(
         "reverse:forward:${if (noRebind) "norebind:" else ""}$remote;$local",
     )
 
-    suspend fun removeReverse(remote: TcpPort) = deviceCommand("reverse:killforward:$remote")
+    public suspend fun removeReverse(remote: TcpPort): Unit = deviceCommand("reverse:killforward:$remote")
 
-    suspend fun listReverses(): List<ReverseForward> = client.session { protocol ->
+    public suspend fun listReverses(): List<ReverseForward> = client.session { protocol ->
         selectTransport(protocol)
         protocol.request("reverse:list-forward")
         protocol.readPayload().lineSequence().filter { it.isNotBlank() }.map { line ->
@@ -161,5 +288,65 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
     private fun validateCommand(command: String, maxOutputBytes: Int) {
         require(command.isNotBlank() && '\u0000' !in command) { "A non-empty shell command without NUL is required" }
         require(maxOutputBytes > 0)
+    }
+
+    private fun validatePushArguments(mode: Int, modifiedAtEpochSeconds: Long, maxBytes: Long) {
+        require(mode in 0..0x1ff) { "mode must contain only POSIX permission bits" }
+        require(modifiedAtEpochSeconds in 0..0xffffffffL) { "Modification time is outside SYNC v1 range" }
+        require(maxBytes > 0) { "maxBytes must be positive" }
+    }
+
+    private fun localMode(source: Path): Int = try {
+        Files.getPosixFilePermissions(source).fold(0) { mode, permission ->
+            mode or when (permission) {
+                PosixFilePermission.OWNER_READ -> 0b100000000
+                PosixFilePermission.OWNER_WRITE -> 0b010000000
+                PosixFilePermission.OWNER_EXECUTE -> 0b001000000
+                PosixFilePermission.GROUP_READ -> 0b000100000
+                PosixFilePermission.GROUP_WRITE -> 0b000010000
+                PosixFilePermission.GROUP_EXECUTE -> 0b000001000
+                PosixFilePermission.OTHERS_READ -> 0b000000100
+                PosixFilePermission.OTHERS_WRITE -> 0b000000010
+                PosixFilePermission.OTHERS_EXECUTE -> 0b000000001
+            }
+        }
+    } catch (_: UnsupportedOperationException) {
+        DEFAULT_FILE_MODE
+    }
+
+    private fun applyRemoteAttributes(path: Path, stat: RemoteFileStat) {
+        Files.setLastModifiedTime(path, FileTime.fromMillis(stat.modifiedAtEpochSeconds * 1_000))
+        val permissions = PosixFilePermission.entries.filterTo(mutableSetOf()) { permission ->
+            stat.mode and permissionMask(permission) != 0
+        }
+        try {
+            Files.setPosixFilePermissions(path, permissions)
+        } catch (_: UnsupportedOperationException) {
+            // Non-POSIX filesystems still preserve the modification time.
+        }
+    }
+
+    private fun permissionMask(permission: PosixFilePermission): Int = when (permission) {
+        PosixFilePermission.OWNER_READ -> 0b100000000
+        PosixFilePermission.OWNER_WRITE -> 0b010000000
+        PosixFilePermission.OWNER_EXECUTE -> 0b001000000
+        PosixFilePermission.GROUP_READ -> 0b000100000
+        PosixFilePermission.GROUP_WRITE -> 0b000010000
+        PosixFilePermission.GROUP_EXECUTE -> 0b000001000
+        PosixFilePermission.OTHERS_READ -> 0b000000100
+        PosixFilePermission.OTHERS_WRITE -> 0b000000010
+        PosixFilePermission.OTHERS_EXECUTE -> 0b000000001
+    }
+
+    private fun moveReplacing(source: Path, destination: Path) {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_FILE_MODE: Int = 0b110100100
     }
 }

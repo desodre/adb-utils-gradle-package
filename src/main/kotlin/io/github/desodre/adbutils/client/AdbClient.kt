@@ -12,7 +12,7 @@ import io.github.desodre.adbutils.transport.AdbTransport
 import io.github.desodre.adbutils.transport.jvm.JvmAdbTransport
 
 /** Each operation owns a fresh connection and closes it on success, failure or cancellation. */
-class AdbClient(
+public class AdbClient(
     host: String = "127.0.0.1",
     port: Int = 5037,
     private val timeoutMillis: Int = 10_000,
@@ -24,19 +24,19 @@ class AdbClient(
         require(timeoutMillis > 0)
     }
 
-    suspend fun version(): AdbVersion = session { protocol ->
+    public suspend fun version(): AdbVersion = session { protocol ->
         protocol.request("host:version")
         AdbVersion(AdbCodec.decodeLength(protocol.readPayload().encodeToByteArray()))
     }
 
     /** Includes unavailable devices and retains the server's model spelling (including underscores). */
-    suspend fun devices(): List<DeviceInfo> = session { protocol ->
+    public suspend fun devices(): List<DeviceInfo> = session { protocol ->
         protocol.request("host:devices-l")
         DeviceListParser.parse(protocol.readPayload())
     }
 
     /** Cold stream. Every collector owns and closes an independent tracking connection. */
-    fun trackDevices(): Flow<List<DeviceInfo>> = flow {
+    public fun trackDevices(): Flow<List<DeviceInfo>> = flow {
         streamingSession { protocol ->
             protocol.request("host:track-devices-l")
             while (true) emit(DeviceListParser.parse(AdbCodec.decodeText(protocol.readPayloadBytes())))
@@ -44,7 +44,7 @@ class AdbClient(
     }
 
     /** Without a serial, selects the sole DEVICE entry. Other states are available in devices(). */
-    suspend fun device(serial: DeviceSerial? = null): AdbDevice {
+    public suspend fun device(serial: DeviceSerial? = null): AdbDevice {
         val detected = devices()
         val selected = if (serial != null) {
             detected.firstOrNull { it.serial == serial } ?: throw DeviceNotFoundException(serial)

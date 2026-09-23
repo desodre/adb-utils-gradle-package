@@ -34,8 +34,29 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: gradle
-      - run: ./gradlew validatePublication
+      - run: ./gradlew checkKotlinAbi consumerTest
       - uses: actions/upload-artifact@v4
         with:
           name: publication-check-repository
           path: build/publication-check-repository
+
+  samples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: |
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
+      - run: ./gradlew validatePublication
+      - name: Build Kotlin/JVM sample
+        run: ./gradlew -p samples/kotlin-jvm clean test -PadbUtilsRepository="$PWD/build/publication-check-repository" -PadbUtilsVersion="$(tr -d '[:space:]' < VERSION)"
+      - name: Build Android sample
+        run: ./gradlew -p samples/android clean assembleDebug -PadbUtilsRepository="$PWD/build/publication-check-repository" -PadbUtilsVersion="$(tr -d '[:space:]' < VERSION)"

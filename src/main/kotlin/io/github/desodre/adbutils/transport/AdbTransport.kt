@@ -1,11 +1,11 @@
 package io.github.desodre.adbutils.transport
 
 /** A single session, used sequentially. Factories must return a fresh instance per operation. */
-interface AdbTransport {
-    suspend fun connect()
-    suspend fun write(data: ByteArray)
+public interface AdbTransport {
+    public suspend fun connect(): Unit
+    public suspend fun write(data: ByteArray): Unit
     /** Returns 1..[maxBytes] bytes, or an empty array on EOF. */
-    suspend fun read(maxBytes: Int): ByteArray
+    public suspend fun read(maxBytes: Int): ByteArray
     /** Idempotent; must release resources even when the calling coroutine is cancelled. */
-    suspend fun close()
+    public suspend fun close(): Unit
 }

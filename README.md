@@ -14,7 +14,7 @@ This is the Kotlin/JVM implementation in the adb-utils family. The independently
 
 ## Installation
 
-The first Maven Central release is being prepared under these coordinates:
+Release automation is prepared for these Maven Central coordinates:
 
 ```kotlin
 dependencies {
@@ -22,12 +22,13 @@ dependencies {
 }
 ```
 
-Until published, use `./gradlew publishToMavenLocal`.
+Until the first tagged release is published, use `./gradlew publishToMavenLocal` or the generated validation repository.
 
 ## Quick start
 
 ```kotlin
 import io.github.desodre.adbutils.client.AdbClient
+import java.nio.file.Path
 
 suspend fun main() {
     val adb = AdbClient()
@@ -56,6 +57,8 @@ The cold `Flow` owns one connection per collector. Cancellation closes it. Snaps
 ```kotlin
 device.push("hello".encodeToByteArray(), "/data/local/tmp/hello.txt")
 val contents = device.pull("/data/local/tmp/hello.txt")
+device.pullTo("/sdcard/large.bin", Path.of("large.bin"))
+device.push(Path.of("upload.bin"), "/data/local/tmp/upload.bin")
 val stat = device.stat("/data/local/tmp/hello.txt")
 val entries = device.list("/data/local/tmp")
 
@@ -66,7 +69,9 @@ device.forward(TcpPort(7000), TcpPort(8000))
 device.removeForward(TcpPort(7000))
 ```
 
-SYNC paths are limited to 1,024 UTF-8 bytes. `pull()` buffers data in memory with a 64 MiB default limit; `push()` accepts a `ByteArray` and sends 64 KiB chunks. Package installation uses SYNC, Package Manager and a temporary file under `/data/local/tmp`.
+SYNC paths are limited to 1,024 UTF-8 bytes. `pull()` retains its convenient 64 MiB in-memory default. `pullChunks()` exposes a cold `Flow<ByteArray>`, while `pullTo()` writes through a temporary sibling file and atomically replaces the destination when supported. `pushChunks()` emits cumulative `SyncTransferProgress`; the `Path` overload streams local files and derives their POSIX mode and modification time. All streaming limits are configurable, cancellation closes the ADB session, and protocol frames remain capped at 64 KiB. Package installation uses SYNC, Package Manager and a temporary file under `/data/local/tmp`.
+
+On Android, the overloads based on `java.nio.file.Path` require API 26 or newer; the Flow-based overloads remain available independently of local-file helpers.
 
 Version 0.2.0 supports fixed TCP forwarding endpoints. Callers must remove mappings they create.
 
@@ -74,7 +79,7 @@ Version 0.2.0 supports fixed TCP forwarding endpoints. Callers must remove mappi
 
 - Host version, long device listing and typed device selection.
 - Legacy shell, Shell v2, getprop and device tracking with `Flow`.
-- ADB SYNC v1 stat/list/push/pull in memory.
+- ADB SYNC v1 stat/list, in-memory transfers, streaming flows and local file sources/sinks.
 - Package install/uninstall and TCP forward/reverse.
 - Text shell APIs reject malformed UTF-8; binary Shell v2 output is not exposed.
 - The SDK does not start the ADB Server.
@@ -86,12 +91,17 @@ Errors derive from `AdbException` and distinguish server availability, connectio
 
 ```shell
 ./gradlew clean build
+./gradlew checkKotlinAbi consumerTest
 ./gradlew validatePublication
 ```
 
 Unit and loopback TCP tests require no device. Real-device smoke tests must be explicitly enabled. Version 0.2.0 was exercised against a physical Android 16 device for tracking, shells, SYNC and forwarding.
 
-`validatePublication` builds an unsigned Maven repository under `build/publication-check-repository` and verifies the artifacts, checksums and required POM metadata. The `releaseBundle` task is reserved for signed releases and fails unless the protected `signingKey` and `signingPassword` Gradle properties are present.
+`validatePublication` builds an unsigned Maven repository under `build/publication-check-repository` and verifies artifacts, checksums and required POM metadata. `consumerTest` resolves the standalone JVM sample exclusively through that repository. Kotlin explicit API mode and `checkKotlinAbi` protect the checked-in ABI baseline; run `./gradlew updateKotlinAbi` only after reviewing an intentional public API change.
+
+The `releaseBundle` task is reserved for signed releases and fails unless the protected `signingKey` and `signingPassword` Gradle properties are present. A semantic tag matching `VERSION` (for example `v0.2.0`) runs the release workflow, uploads the signed bundle through the Central Portal Publisher API, waits for `PUBLISHED`, and then creates the GitHub Release. See [RELEASING.md](RELEASING.md).
+
+Standalone examples live in [samples/kotlin-jvm](samples/kotlin-jvm) and [samples/android](samples/android). Dokka documentation is deployed to [GitHub Pages](https://desodre.github.io/adb-utils-gradle-package/) after changes reach `main`.
 
 ## Related implementation
 
@@ -101,7 +111,6 @@ Feature coverage and versions evolve independently in each ecosystem.
 
 ## Roadmap
 
-- Streaming SYNC and local file sources/sinks.
 - Logcat as `Flow`, screenshots and diagnostics.
 - CLI, Compose Desktop and Kotlin Multiplatform/Native.
 

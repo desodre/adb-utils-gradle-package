@@ -1,3 +1,3 @@
 package io.github.desodre.adbutils.model
 
-data class ShellResult(val stdout: String, val stderr: String, val exitCode: Int)
+public data class ShellResult(public val stdout: String, public val stderr: String, public val exitCode: Int)

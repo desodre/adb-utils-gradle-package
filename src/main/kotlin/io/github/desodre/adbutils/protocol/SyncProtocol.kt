@@ -2,6 +2,9 @@ package io.github.desodre.adbutils.protocol
 
 import io.github.desodre.adbutils.error.*
 import io.github.desodre.adbutils.model.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flowOf
 
 internal class SyncProtocol(private val protocol: AdbProtocol) {
     suspend fun stat(path: String): RemoteFileStat {
@@ -26,29 +29,53 @@ internal class SyncProtocol(private val protocol: AdbProtocol) {
     }
 
     suspend fun pull(path: String, maxBytes: Int): ByteArray {
-        request("RECV", path)
         val chunks = mutableListOf<ByteArray>()
-        var total = 0
+        val total = pull(path, maxBytes.toLong()) { chunks += it }
+        return chunks.join(total.toInt())
+    }
+
+    suspend fun pull(path: String, maxBytes: Long, onChunk: suspend (ByteArray) -> Unit): Long {
+        request("RECV", path)
+        var total = 0L
         while (true) when (val id = readId()) {
             "DATA" -> {
                 val length = readLength()
+                if (length > MAX_DATA) throw AdbProtocolException("SYNC DATA frame exceeds $MAX_DATA bytes")
                 if (length > maxBytes - total) throw SyncTransferLimitException(maxBytes)
-                chunks += protocol.readExactly(length)
+                onChunk(protocol.readExactly(length))
                 total += length
             }
-            "DONE" -> { protocol.readExactly(4); return chunks.join(total) }
+            "DONE" -> { protocol.readExactly(4); return total }
             "FAIL" -> fail()
             else -> throw AdbProtocolException("Unexpected SYNC pull id: $id")
         }
     }
 
     suspend fun push(path: String, data: ByteArray, mode: Int, modifiedAt: Long) {
+        push(path, flowOf(data), mode, modifiedAt, data.size.toLong()) {}
+    }
+
+    suspend fun push(
+        path: String,
+        chunks: Flow<ByteArray>,
+        mode: Int,
+        modifiedAt: Long,
+        maxBytes: Long,
+        onProgress: suspend (Long) -> Unit,
+    ): Long {
         request("SEND", "$path,$mode")
-        var offset = 0
-        while (offset < data.size) {
-            val bytes = data.copyOfRange(offset, minOf(offset + MAX_DATA, data.size))
-            protocol.writeRaw("DATA".encodeToByteArray() + le(bytes.size) + bytes)
-            offset += bytes.size
+        var total = 0L
+        chunks.collect { chunk ->
+            var offset = 0
+            while (offset < chunk.size) {
+                val length = minOf(MAX_DATA, chunk.size - offset)
+                if (length > maxBytes - total) throw SyncTransferLimitException(maxBytes)
+                val bytes = chunk.copyOfRange(offset, offset + length)
+                protocol.writeRaw("DATA".encodeToByteArray() + le(length) + bytes)
+                offset += length
+                total += length
+                onProgress(total)
+            }
         }
         protocol.writeRaw("DONE".encodeToByteArray() + le(modifiedAt.toInt()))
         when (val id = readId()) {
@@ -56,6 +83,7 @@ internal class SyncProtocol(private val protocol: AdbProtocol) {
             "FAIL" -> fail()
             else -> throw AdbProtocolException("Unexpected SYNC push id: $id")
         }
+        return total
     }
 
     private suspend fun request(id: String, value: String) {
@@ -83,8 +111,8 @@ internal class SyncProtocol(private val protocol: AdbProtocol) {
     companion object {
         const val MAX_DATA = 64 * 1024
         const val MAX_NAME = 1024
-        fun le(value: Int) = byteArrayOf(value.toByte(), (value ushr 8).toByte(), (value ushr 16).toByte(), (value ushr 24).toByte())
-        fun fromLe(value: ByteArray) = (value[0].toInt() and 255) or ((value[1].toInt() and 255) shl 8) or
+        fun le(value: Int): ByteArray = byteArrayOf(value.toByte(), (value ushr 8).toByte(), (value ushr 16).toByte(), (value ushr 24).toByte())
+        fun fromLe(value: ByteArray): Int = (value[0].toInt() and 255) or ((value[1].toInt() and 255) shl 8) or
             ((value[2].toInt() and 255) shl 16) or ((value[3].toInt() and 255) shl 24)
         private fun uint(value: Int) = value.toLong() and 0xffffffffL
         private fun List<ByteArray>.join(size: Int) = ByteArray(size).also { out ->

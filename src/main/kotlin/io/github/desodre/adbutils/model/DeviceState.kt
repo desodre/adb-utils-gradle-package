@@ -1,10 +1,10 @@
 package io.github.desodre.adbutils.model
 
-enum class DeviceState {
+public enum class DeviceState {
     DEVICE, OFFLINE, UNAUTHORIZED, BOOTLOADER, RECOVERY, SIDELOAD, RESCUE, NO_PERMISSIONS, UNKNOWN;
 
-    companion object {
-        fun fromWire(value: String): DeviceState = when (value) {
+    public companion object {
+        public fun fromWire(value: String): DeviceState = when (value) {
             "device" -> DEVICE
             "offline" -> OFFLINE
             "unauthorized" -> UNAUTHORIZED

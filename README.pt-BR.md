@@ -20,7 +20,7 @@ Esta é a implementação Kotlin/JVM da família adb-utils. A implementação Da
 ./gradlew build
 ```
 
-O artefato fica em `build/libs/adb-utils-0.2.0.jar`. Enquanto a primeira publicação no Maven Central é preparada, use `./gradlew publishToMavenLocal`. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
+O artefato fica em `build/libs/adb-utils-0.2.0.jar`. A automação da primeira publicação no Maven Central está pronta; até a tag ser publicada, use `./gradlew publishToMavenLocal` ou o repositório local de validação. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
 
 ## Exemplo mínimo
 
@@ -28,6 +28,7 @@ O artefato fica em `build/libs/adb-utils-0.2.0.jar`. Enquanto a primeira publica
 import io.github.desodre.adbutils.client.AdbClient
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.TcpPort
+import java.nio.file.Path
 
 suspend fun main() {
     val adb = AdbClient()
@@ -46,6 +47,9 @@ suspend fun main() {
 
     device.push("hello".encodeToByteArray(), "/data/local/tmp/hello.txt")
     println(device.pull("/data/local/tmp/hello.txt").decodeToString())
+
+    device.pullTo("/sdcard/large.bin", Path.of("large.bin"))
+    device.push(Path.of("upload.bin"), "/data/local/tmp/upload.bin")
 
     // Para selecionar explicitamente:
     // val selected = adb.device(DeviceSerial("R58M..."))
@@ -69,7 +73,7 @@ O timeout limita sessões finitas completas e a conexão TCP. Tracking não poss
 - Shell legado não interativo e leitura de uma propriedade por `getprop`, sem cache.
 - Shell v2 com stdout/stderr separados e exit code.
 - `trackDevices()` como cold `Flow`, com sessão independente por collector.
-- ADB SYNC v1: `stat`, `list`, `push` e `pull` em memória.
+- ADB SYNC v1: `stat`, `list`, operações em memória, streaming e arquivos locais.
 - `install`/`uninstall` via SYNC e Package Manager, sem subprocessos.
 - Forward/reverse TCP, listagem e remoção com endpoints tipados.
 
@@ -83,7 +87,9 @@ Limitações do shell legado: stdout/stderr combinados, sem exit code, sem stdin
 
 `shellV2()` resolve essas limitações para comandos textuais compatíveis, retornando `ShellResult`. `trackDevices()` emite cada snapshot recebido; não reconecta automaticamente após EOF ou erro.
 
-SYNC aceita caminhos de até 1024 bytes UTF-8. `pull()` acumula o arquivo em memória e aplica limite padrão de 64 MiB; `push()` recebe `ByteArray` e envia chunks de até 64 KiB. Streaming de arquivos e metadados SYNC v2 ficam para uma etapa futura.
+SYNC aceita caminhos de até 1024 bytes UTF-8. `pull()` mantém o limite padrão de 64 MiB em memória. `pullChunks()` fornece `Flow<ByteArray>` e `pullTo()` grava por arquivo temporário, substituindo o destino atomicamente quando possível. `pushChunks()` emite `SyncTransferProgress`; a sobrecarga com `Path` transmite o arquivo sem carregá-lo inteiro e deriva permissões POSIX e data de modificação. Limites são configuráveis, cancelamento fecha a sessão e os frames permanecem limitados a 64 KiB.
+
+No Android, as sobrecargas baseadas em `java.nio.file.Path` exigem API 26 ou superior; as sobrecargas baseadas em Flow continuam disponíveis independentemente dos helpers para arquivos locais.
 
 `install()` envia o APK para `/data/local/tmp`, executa `pm install` por Shell v2 e tenta remover o temporário no final. O resultado informa sucesso e mensagem; a execução real de instalação não fez parte do smoke test 0.2 por não haver APK de fixture. `uninstall()` exige package name validado e lança `PackageOperationException` em falha.
 
@@ -109,7 +115,7 @@ Erros distinguíveis: `AdbServerUnavailableException` (conexão recusada), `AdbC
 ## Roadmap (não implementado)
 
 - logcat com `Flow` e screenshot.
-- Streaming SYNC, arquivos locais e suporte a endpoints não TCP.
+- Suporte a endpoints de forward que não sejam TCP.
 - Inspeção de pacotes/processos e diagnósticos de dispositivos.
 - CLI e Compose Desktop sobre o SDK.
 - Avaliar Kotlin Multiplatform/Native.
@@ -122,9 +128,12 @@ Para validar localmente os artefatos Maven, checksums e metadados obrigatórios:
 
 ```sh
 ./gradlew validatePublication
+./gradlew checkKotlinAbi consumerTest
 ```
 
-O repositório de validação sem assinatura fica em `build/publication-check-repository`. A tarefa `releaseBundle` é exclusiva para releases assinadas e falha quando as propriedades Gradle protegidas `signingKey` e `signingPassword` não estão presentes.
+O repositório de validação sem assinatura fica em `build/publication-check-repository`; `consumerTest` resolve a amostra JVM somente por esse repositório. O modo de API explícita e `checkKotlinAbi` protegem a baseline pública versionada. Use `./gradlew updateKotlinAbi` apenas após revisar uma mudança intencional.
+
+A tarefa `releaseBundle` é exclusiva para releases assinadas e falha sem `signingKey` e `signingPassword`. Uma tag semântica igual ao arquivo `VERSION` envia o bundle ao Central Portal, aguarda o estado `PUBLISHED` e cria a GitHub Release. Consulte [RELEASING.md](RELEASING.md). As amostras estão em [samples/kotlin-jvm](samples/kotlin-jvm) e [samples/android](samples/android); a documentação Dokka é publicada no [GitHub Pages](https://desodre.github.io/adb-utils-gradle-package/).
 
 - [adb_utils para Dart](https://github.com/desodre/adb_utils), distribuída pelo [pub.dev](https://pub.dev/packages/adb_utils).
 
