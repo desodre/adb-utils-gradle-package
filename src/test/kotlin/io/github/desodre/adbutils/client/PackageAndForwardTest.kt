@@ -21,6 +21,7 @@ class PackageAndForwardTest {
         val device = AdbDevice(AdbClient(transportFactory = { queue.removeFirst() }), DeviceSerial("a"))
         assertEquals("Success", device.install(byteArrayOf(1, 2), InstallOptions(grantRuntimePermissions = true)).message)
         assertTrue(sync.requests.any { it.startsWith("SEND") })
+        assertTrue(sync.requests.any { "adb-utils-2-" in it })
         assertTrue(install.requests.last().contains("pm install -r -g"))
         assertTrue(cleanup.requests.last().contains("rm -f"))
     }

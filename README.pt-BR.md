@@ -4,11 +4,13 @@
 
 Biblioteca Kotlin/JVM para comunicação direta com o ADB Server por TCP, normalmente em `127.0.0.1:5037`. **Versão atual: `0.2.0`, API ainda sujeita a mudanças.**
 
-adb-utils implementa o protocolo de smart sockets do servidor. Não é um wrapper de subprocessos: não executa `adb`, não inicia o servidor automaticamente e não usa `ProcessBuilder`. O projeto Dart [adb_utils](https://pub.dev/packages/adb_utils) é uma referência conceitual e comportamental; esta implementação tem arquitetura própria em Kotlin.
+adb-utils implementa o protocolo de smart sockets do servidor. Não é um wrapper de subprocessos: não executa `adb`, não inicia o servidor automaticamente e não usa `ProcessBuilder`.
+
+Esta é a implementação Kotlin/JVM da família adb-utils. A implementação Dart, versionada de forma independente, está em [desodre/adb_utils](https://github.com/desodre/adb_utils) e no [pub.dev](https://pub.dev/packages/adb_utils). As duas compartilham objetivos de protocolo, mas não código-fonte nem números de versão.
 
 ## Requisitos e build
 
-- JDK 21 para compilar e executar a biblioteca. O Gradle pode provisionar a toolchain pelo resolver Foojay.
+- JDK 17 para compilar e executar a biblioteca. O Gradle pode provisionar a toolchain pelo resolver Foojay.
 - Gradle Wrapper incluído (9.6.0), Kotlin 2.4.10 e Coroutines 1.11.0.
 - Para uso real: Android Platform Tools instalado, ADB Server já iniciado (`adb start-server`) e depuração USB/Wi-Fi autorizada no dispositivo.
 - Os testes usam transportes simulados e sockets loopback em portas efêmeras; não exigem ADB nem celular.
@@ -18,7 +20,7 @@ adb-utils implementa o protocolo de smart sockets do servidor. Não é um wrappe
 ./gradlew build
 ```
 
-O artefato fica em `build/libs/adb-utils-0.2.0.jar`. Ainda não há publicação em repositório Maven; use este projeto como módulo Gradle local. O JAR não empacota Kotlin stdlib ou Coroutines: consumidores precisam das dependências de runtime transitivas do módulo.
+O artefato fica em `build/libs/adb-utils-0.2.0.jar`. Enquanto a primeira publicação no Maven Central é preparada, use `./gradlew publishToMavenLocal`. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
 
 ## Exemplo mínimo
 
@@ -90,7 +92,7 @@ Forward e reverse suportam somente endpoints `tcp:<port>` fixos nesta versão; p
 ## Estrutura e erros
 
 ```text
-src/main/kotlin/org/desodre/droidscope/
+src/main/kotlin/io/github/desodre/adbutils/
 ├── client/         AdbClient, AdbDevice e ciclo de vida das sessões
 ├── protocol/       framing, respostas e parsing (internos; sem java.*)
 ├── transport/      contrato de comunicação injetável
@@ -110,6 +112,20 @@ Erros distinguíveis: `AdbServerUnavailableException` (conexão recusada), `AdbC
 - Streaming SYNC, arquivos locais e suporte a endpoints não TCP.
 - Inspeção de pacotes/processos e diagnósticos de dispositivos.
 - CLI e Compose Desktop sobre o SDK.
-- Avaliar Kotlin Multiplatform/Native e bindings Dart para Flutter.
+- Avaliar Kotlin Multiplatform/Native.
 
 As referências de protocolo incluem os [serviços ADB no AOSP](https://android.googlesource.com/platform/system/adb/+/refs/heads/main/SERVICES.TXT) e o [manual atual](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/user/adb.1.md). A documentação histórica contém particularidades antigas; esta milestone usa `OKAY` + payload com prefixo para `host:version`.
+
+## Publicação e implementação relacionada
+
+Para validar localmente os artefatos Maven, checksums e metadados obrigatórios:
+
+```sh
+./gradlew validatePublication
+```
+
+O repositório de validação sem assinatura fica em `build/publication-check-repository`. A tarefa `releaseBundle` é exclusiva para releases assinadas e falha quando as propriedades Gradle protegidas `signingKey` e `signingPassword` não estão presentes.
+
+- [adb_utils para Dart](https://github.com/desodre/adb_utils), distribuída pelo [pub.dev](https://pub.dev/packages/adb_utils).
+
+As funcionalidades e versões evoluem de forma independente em cada ecossistema.
