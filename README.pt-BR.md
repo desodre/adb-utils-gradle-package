@@ -8,7 +8,7 @@ adb-utils implementa o protocolo de smart sockets do servidor. Não é um wrappe
 
 ## Requisitos e build
 
-- JDK 21 para compilar e executar a biblioteca. O Gradle pode provisionar a toolchain pelo resolver Foojay.
+- JDK 17 para compilar e executar a biblioteca. O Gradle pode provisionar a toolchain pelo resolver Foojay.
 - Gradle Wrapper incluído (9.6.0), Kotlin 2.4.10 e Coroutines 1.11.0.
 - Para uso real: Android Platform Tools instalado, ADB Server já iniciado (`adb start-server`) e depuração USB/Wi-Fi autorizada no dispositivo.
 - Os testes usam transportes simulados e sockets loopback em portas efêmeras; não exigem ADB nem celular.
@@ -90,7 +90,7 @@ Forward e reverse suportam somente endpoints `tcp:<port>` fixos nesta versão; p
 ## Estrutura e erros
 
 ```text
-src/main/kotlin/org/desodre/droidscope/
+src/main/kotlin/io/github/desodre/adbutils/
 ├── client/         AdbClient, AdbDevice e ciclo de vida das sessões
 ├── protocol/       framing, respostas e parsing (internos; sem java.*)
 ├── transport/      contrato de comunicação injetável
