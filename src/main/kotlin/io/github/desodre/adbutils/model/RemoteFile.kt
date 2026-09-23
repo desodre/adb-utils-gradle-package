@@ -1,4 +1,4 @@
 package io.github.desodre.adbutils.model
 
-data class RemoteFileStat(val mode: Int, val size: Long, val modifiedAtEpochSeconds: Long)
-data class RemoteFile(val name: String, val stat: RemoteFileStat)
+public data class RemoteFileStat(public val mode: Int, public val size: Long, public val modifiedAtEpochSeconds: Long)
+public data class RemoteFile(public val name: String, public val stat: RemoteFileStat)

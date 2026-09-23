@@ -13,7 +13,7 @@ import io.github.desodre.adbutils.error.*
 import io.github.desodre.adbutils.transport.AdbTransport
 
 /** Blocking socket I/O runs on Dispatchers.IO; cancellation closes the socket to unblock it. */
-class JvmAdbTransport(
+public class JvmAdbTransport(
     private val host: String = "127.0.0.1",
     private val port: Int = 5037,
     private val timeoutMillis: Int = 10_000,
@@ -26,12 +26,12 @@ class JvmAdbTransport(
 
     private val socket = Socket()
 
-    override suspend fun connect() = io {
+    override suspend fun connect(): Unit = io {
         socket.soTimeout = 0
         socket.connect(InetSocketAddress(host, port), timeoutMillis)
     }
 
-    override suspend fun write(data: ByteArray) = io { socket.getOutputStream().write(data) }
+    override suspend fun write(data: ByteArray): Unit = io { socket.getOutputStream().write(data) }
 
     override suspend fun read(maxBytes: Int): ByteArray {
         require(maxBytes > 0)
