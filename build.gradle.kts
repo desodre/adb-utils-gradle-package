@@ -1,3 +1,5 @@
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+
 plugins {
     kotlin("jvm") version "2.4.10"
     `java-library`
@@ -9,6 +11,13 @@ plugins {
 
 group = "io.github.desodre"
 version = "0.2.0"
+
+val artifactName = "adb-utils"
+val projectUrl = "https://github.com/desodre/adb-utils-gradle-package"
+val publicationCheckRepository = layout.buildDirectory.dir("publication-check-repository")
+val releaseRepository = layout.buildDirectory.dir("release-repository")
+val signingKey = providers.gradleProperty("signingKey")
+val signingPassword = providers.gradleProperty("signingPassword")
 
 repositories { mavenCentral() }
 
@@ -46,12 +55,12 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
-            artifactId = "adb-utils"
+            artifactId = artifactName
             artifact(dokkaJavadocJar)
             pom {
                 name.set("adb-utils")
                 description.set("Kotlin/JVM SDK for direct communication with the Android Debug Bridge server")
-                url.set("https://github.com/desodre/adb-utils")
+                url.set(projectUrl)
                 licenses {
                     license {
                         name.set("MIT License")
@@ -67,26 +76,129 @@ publishing {
                     }
                 }
                 scm {
-                    connection.set("scm:git:https://github.com/desodre/adb-utils.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/desodre/adb-utils.git")
-                    url.set("https://github.com/desodre/adb-utils")
+                    connection.set("scm:git:${projectUrl}.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/desodre/adb-utils-gradle-package.git")
+                    url.set(projectUrl)
                 }
             }
         }
     }
     repositories {
         maven {
+            name = "publicationCheck"
+            url = uri(publicationCheckRepository)
+        }
+        maven {
             name = "releaseBundle"
-            url = uri(layout.buildDirectory.dir("release-repository"))
+            url = uri(releaseRepository)
         }
     }
 }
 
 signing {
-    val key = providers.gradleProperty("signingKey").orNull
-    val password = providers.gradleProperty("signingPassword").orNull
-    if (key != null) {
-        useInMemoryPgpKeys(key, password)
-        sign(publishing.publications["maven"])
+    isRequired = false
+    if (signingKey.isPresent) {
+        useInMemoryPgpKeys(signingKey.get(), signingPassword.orNull)
+    }
+    sign(publishing.publications["maven"])
+}
+
+val cleanPublicationCheckRepository = tasks.register<Delete>("cleanPublicationCheckRepository") {
+    delete(publicationCheckRepository)
+}
+
+val cleanReleaseRepository = tasks.register<Delete>("cleanReleaseRepository") {
+    delete(releaseRepository)
+}
+
+tasks.withType<PublishToMavenRepository>().configureEach {
+    when (repository.name) {
+        "publicationCheck" -> dependsOn(cleanPublicationCheckRepository)
+        "releaseBundle" -> {
+            dependsOn(cleanReleaseRepository)
+            doFirst {
+                check(!version.toString().endsWith("-SNAPSHOT")) {
+                    "Release bundles require a non-SNAPSHOT version"
+                }
+                check(signingKey.orNull?.isNotBlank() == true) {
+                    "Release bundles require the signingKey Gradle property"
+                }
+                check(signingPassword.isPresent) {
+                    "Release bundles require the signingPassword Gradle property"
+                }
+            }
+        }
+    }
+}
+
+fun validateMavenRepository(repositoryRoot: File, requireSignatures: Boolean) {
+    val versionDirectory = repositoryRoot.resolve(
+        "${project.group.toString().replace('.', '/')}/$artifactName/${project.version}",
+    )
+    check(versionDirectory.isDirectory) { "Missing Maven version directory: $versionDirectory" }
+
+    val baseName = "$artifactName-${project.version}"
+    val requiredArtifacts = listOf(
+        "$baseName.jar",
+        "$baseName-sources.jar",
+        "$baseName-javadoc.jar",
+        "$baseName.pom",
+        "$baseName.module",
+    )
+    requiredArtifacts.forEach { name ->
+        val artifact = versionDirectory.resolve(name)
+        check(artifact.isFile && artifact.length() > 0) { "Missing or empty publication artifact: $artifact" }
+        listOf("md5", "sha1").forEach { algorithm ->
+            check(versionDirectory.resolve("$name.$algorithm").isFile) {
+                "Missing $algorithm checksum for $name"
+            }
+        }
+        if (requireSignatures) {
+            val signature = versionDirectory.resolve("$name.asc")
+            check(signature.isFile && signature.length() > 0) { "Missing or empty PGP signature for $name" }
+        }
+    }
+
+    val pom = versionDirectory.resolve("$baseName.pom").readText()
+    listOf(
+        "<groupId>${project.group}</groupId>",
+        "<artifactId>$artifactName</artifactId>",
+        "<version>${project.version}</version>",
+        "<name>adb-utils</name>",
+        "<description>",
+        "<url>$projectUrl</url>",
+        "<licenses>",
+        "<developers>",
+        "<scm>",
+    ).forEach { requiredMetadata ->
+        check(requiredMetadata in pom) { "Generated POM is missing $requiredMetadata" }
+    }
+}
+
+val validatePublication = tasks.register("validatePublication") {
+    group = "verification"
+    description = "Builds and validates an unsigned Maven repository for CI and local checks"
+    dependsOn("publishMavenPublicationToPublicationCheckRepository")
+    doLast { validateMavenRepository(publicationCheckRepository.get().asFile, requireSignatures = false) }
+}
+
+val validateReleaseBundle = tasks.register("validateReleaseBundle") {
+    group = "publishing"
+    description = "Builds and validates a signed Maven Central release repository"
+    dependsOn("publishMavenPublicationToReleaseBundleRepository")
+    doLast { validateMavenRepository(releaseRepository.get().asFile, requireSignatures = true) }
+}
+
+tasks.register<Zip>("releaseBundle") {
+    group = "publishing"
+    description = "Creates the signed archive that can be uploaded to Maven Central"
+    dependsOn(validateReleaseBundle)
+    archiveFileName.set("$artifactName-${project.version}-central-bundle.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("central-bundle"))
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    from(releaseRepository) {
+        exclude("**/maven-metadata.xml*")
+        exclude("**/*.asc.md5", "**/*.asc.sha1", "**/*.asc.sha256", "**/*.asc.sha512")
     }
 }

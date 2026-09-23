@@ -58,7 +58,7 @@ class AdbDevice internal constructor(private val client: AdbClient, val serial: 
     /** Uploads an APK through SYNC, invokes Package Manager and removes the temporary file. */
     suspend fun install(apk: ByteArray, options: InstallOptions = InstallOptions()): InstallResult {
         require(apk.isNotEmpty()) { "APK cannot be empty" }
-        val remote = "/data/local/tmp/droidscope-${apk.size}-${apk.contentHashCode().toUInt()}.apk"
+        val remote = "/data/local/tmp/adb-utils-${apk.size}-${apk.contentHashCode().toUInt()}.apk"
         push(apk, remote)
         var failure: Throwable? = null
         return try {

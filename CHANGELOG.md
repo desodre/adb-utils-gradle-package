@@ -8,6 +8,7 @@ All notable changes follow Semantic Versioning.
 - Added device tracking as a cold Flow.
 - Added ADB SYNC stat, list, push and pull.
 - Added package install/uninstall and TCP forward/reverse management.
+- Added validated Maven publication artifacts, PGP release enforcement and a reproducible Central bundle.
 - Validated non-destructive operations with a physical Android device.
 
 ## 0.1.0 — 2026-09-07

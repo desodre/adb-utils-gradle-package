@@ -25,7 +25,7 @@ jobs:
       - uses: gradle/actions/wrapper-validation@v4
       - run: ./gradlew clean build
 
-  publication:
+  publication-validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -34,8 +34,8 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: gradle
-      - run: ./gradlew publishMavenPublicationToReleaseBundleRepository
+      - run: ./gradlew validatePublication
       - uses: actions/upload-artifact@v4
         with:
-          name: unsigned-release-repository
-          path: build/release-repository
+          name: publication-check-repository
+          path: build/publication-check-repository

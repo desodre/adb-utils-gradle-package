@@ -4,6 +4,8 @@
 
 An early Kotlin/JVM SDK that communicates directly with the local Android Debug Bridge server over its TCP smart-socket protocol, normally at `127.0.0.1:5037`. It does not spawn the `adb` executable or use `ProcessBuilder`.
 
+This is the Kotlin/JVM implementation in the adb-utils family. The independently versioned Dart implementation is available in [desodre/adb_utils](https://github.com/desodre/adb_utils) and on [pub.dev](https://pub.dev/packages/adb_utils). The implementations share protocol goals, but not source code or release numbers.
+
 ## Requirements
 
 - Java 17 or newer.
@@ -84,14 +86,23 @@ Errors derive from `AdbException` and distinguish server availability, connectio
 
 ```shell
 ./gradlew clean build
+./gradlew validatePublication
 ```
 
 Unit and loopback TCP tests require no device. Real-device smoke tests must be explicitly enabled. Version 0.2.0 was exercised against a physical Android 16 device for tracking, shells, SYNC and forwarding.
+
+`validatePublication` builds an unsigned Maven repository under `build/publication-check-repository` and verifies the artifacts, checksums and required POM metadata. The `releaseBundle` task is reserved for signed releases and fails unless the protected `signingKey` and `signingPassword` Gradle properties are present.
+
+## Related implementation
+
+- [adb_utils for Dart](https://github.com/desodre/adb_utils), distributed through [pub.dev](https://pub.dev/packages/adb_utils).
+
+Feature coverage and versions evolve independently in each ecosystem.
 
 ## Roadmap
 
 - Streaming SYNC and local file sources/sinks.
 - Logcat as `Flow`, screenshots and diagnostics.
-- CLI, Compose Desktop, Kotlin Multiplatform/Native and Dart bindings.
+- CLI, Compose Desktop and Kotlin Multiplatform/Native.
 
 See [CHANGELOG.md](CHANGELOG.md). Licensed under the [MIT License](LICENSE).
