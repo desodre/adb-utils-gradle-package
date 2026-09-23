@@ -344,3 +344,4 @@ public final class io/github/desodre/adbutils/transport/jvm/JvmAdbTransport : io
 	public fun read (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun write ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
+
