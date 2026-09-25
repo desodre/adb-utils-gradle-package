@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -38,8 +39,9 @@ public class InteractiveShellSession internal constructor(
     private val completion = CompletableDeferred<ShellTermination>()
     private val writeMutex = Mutex()
     private val cancelRequested = AtomicBoolean(false)
+    private val finished = AtomicBoolean(false)
     private var stdinClosed: Boolean = false
-    private val reader: Job = scope.launch { readOutput() }
+    private val reader: Job = scope.launch(start = CoroutineStart.UNDISPATCHED) { readOutput() }
 
     public val output: Flow<ShellOutputChunk> = outputChannel.receiveAsFlow()
 
@@ -48,7 +50,7 @@ public class InteractiveShellSession internal constructor(
         if (data.isEmpty()) return
         withWriteLock {
             check(!stdinClosed) { "Shell stdin is closed" }
-            check(!completion.isCompleted) { "Shell session has terminated" }
+            check(!finished.get()) { "Shell session has terminated" }
             ShellV2Protocol.writeStdin(connection.protocol, data, options.maxFrameBytes)
         }
     }
@@ -57,7 +59,7 @@ public class InteractiveShellSession internal constructor(
     public suspend fun closeStdin() {
         withWriteLock {
             if (stdinClosed) return@withWriteLock
-            check(!completion.isCompleted) { "Shell session has terminated" }
+            check(!finished.get()) { "Shell session has terminated" }
             ShellV2Protocol.writeCloseStdin(connection.protocol)
             stdinClosed = true
         }
@@ -71,14 +73,13 @@ public class InteractiveShellSession internal constructor(
         if (completion.isCompleted) return
         cancelRequested.set(true)
         reader.cancel(CancellationException("Interactive shell cancelled"))
+        finish(ShellTermination.Cancelled)
         reader.join()
     }
 
     private suspend fun readOutput() {
-        var termination: ShellTermination? = null
-        var streamFailure: Throwable? = null
         try {
-            while (termination == null) {
+            while (true) {
                 when (val frame = ShellV2Protocol.readFrame(connection.protocol, options.maxFrameBytes)) {
                     is ShellV2Protocol.Frame.Stdout -> outputChannel.send(
                         ShellOutputChunk(ShellOutputStream.STDOUT, frame.data),
@@ -86,23 +87,30 @@ public class InteractiveShellSession internal constructor(
                     is ShellV2Protocol.Frame.Stderr -> outputChannel.send(
                         ShellOutputChunk(ShellOutputStream.STDERR, frame.data),
                     )
-                    is ShellV2Protocol.Frame.Exit -> termination = ShellTermination.Exited(frame.exitCode)
+                    is ShellV2Protocol.Frame.Exit -> {
+                        finish(ShellTermination.Exited(frame.exitCode))
+                        return
+                    }
                 }
             }
         } catch (error: CancellationException) {
-            termination = if (cancelRequested.get()) ShellTermination.Cancelled else ShellTermination.Failed(error)
-            if (!cancelRequested.get()) streamFailure = error
+            if (cancelRequested.get()) finish(ShellTermination.Cancelled)
+            else finish(ShellTermination.Failed(error), error)
         } catch (error: Throwable) {
-            termination = ShellTermination.Failed(error)
-            streamFailure = error
-        } finally {
-            val closeFailure = withContext(NonCancellable) {
-                try {
-                    connection.close()
-                    null
-                } catch (error: Throwable) {
-                    error
-                }
+            finish(ShellTermination.Failed(error), error)
+        }
+    }
+
+    private suspend fun finish(requested: ShellTermination, requestedStreamFailure: Throwable? = null) {
+        if (!finished.compareAndSet(false, true)) return
+        withContext(NonCancellable) {
+            var termination = requested
+            var streamFailure = requestedStreamFailure
+            val closeFailure = try {
+                connection.close()
+                null
+            } catch (error: Throwable) {
+                error
             }
             if (closeFailure != null) {
                 val previous = (termination as? ShellTermination.Failed)?.cause
@@ -112,7 +120,7 @@ public class InteractiveShellSession internal constructor(
                 }
             }
             outputChannel.close(streamFailure)
-            completion.complete(requireNotNull(termination))
+            completion.complete(termination)
             scope.cancel()
         }
     }

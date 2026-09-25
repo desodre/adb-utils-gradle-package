@@ -67,13 +67,29 @@ class InteractiveShellSessionTest {
     }
 
     @Test fun `forced cancellation closes transport and is observable`() = runBlocking<Unit> {
-        val transport = DuplexTransport("OKAYOKAY".encodeToByteArray())
-        val session = device(transport).openInteractiveShell()
+        withTimeout(1_000) {
+            val transport = DuplexTransport("OKAYOKAY".encodeToByteArray())
+            val session = device(transport).openInteractiveShell()
 
-        session.cancel()
+            session.cancel()
 
-        assertEquals(ShellTermination.Cancelled, session.awaitTermination())
-        assertTrue(transport.closed)
+            assertEquals(ShellTermination.Cancelled, session.awaitTermination())
+            assertTrue(transport.closed)
+        }
+    }
+
+    @Test fun `immediate cancellation is race safe under repetition`() = runBlocking<Unit> {
+        withTimeout(5_000) {
+            repeat(100) {
+                val transport = DuplexTransport("OKAYOKAY".encodeToByteArray())
+                val session = device(transport).openInteractiveShell()
+
+                session.cancel()
+
+                assertEquals(ShellTermination.Cancelled, session.awaitTermination())
+                assertTrue(transport.closed)
+            }
+        }
     }
 
     @Test fun `frame limit fails output and termination`() = runBlocking<Unit> {
