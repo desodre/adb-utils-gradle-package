@@ -73,6 +73,7 @@ O timeout limita sessões finitas completas e a conexão TCP. Tracking não poss
 - Shell legado não interativo e leitura de uma propriedade por `getprop`, sem cache.
 - Shell v2 com stdout/stderr separados e exit code.
 - `trackDevices()` como cold `Flow`, com sessão independente por collector.
+- `waitForDevice()` para aguardar serial e estado específicos com timeout.
 - ADB SYNC v1: `stat`, `list`, operações em memória, streaming e arquivos locais.
 - `install`/`uninstall` via SYNC e Package Manager, sem subprocessos.
 - Forward/reverse TCP, listagem e remoção com endpoints tipados.
@@ -86,6 +87,18 @@ O shell retorna uma `String` UTF-8 até EOF, preservando quebras de linha. O pad
 Limitações do shell legado: stdout/stderr combinados, sem exit code, sem stdin e sem garantia de distinguir EOF normal de uma interrupção remota que também finalize o fluxo. Uma falha do comando remoto não equivale necessariamente a `FAIL` do protocolo. Saída binária não é suportada; UTF-8 inválido gera erro. A saída é acumulada em memória, por isso esta API não deve ser usada para streams contínuos.
 
 `shellV2()` resolve essas limitações para comandos textuais compatíveis, retornando `ShellResult`. `trackDevices()` emite cada snapshot recebido; não reconecta automaticamente após EOF ou erro.
+
+Para aguardar um dispositivo após reboot sem polling manual:
+
+```kotlin
+val ready = adb.waitForDevice(
+    serial = DeviceSerial("R58M..."),
+    state = DeviceState.DEVICE,
+    timeoutMillis = 30_000,
+)
+```
+
+Ausência temporária e estados intermediários continuam sendo observados. O timeout lança `AdbTimeoutException`; sucesso, timeout e cancelamento sempre encerram a conexão de tracking.
 
 SYNC aceita caminhos de até 1024 bytes UTF-8. `pull()` mantém o limite padrão de 64 MiB em memória. `pullChunks()` fornece `Flow<ByteArray>` e `pullTo()` grava por arquivo temporário, substituindo o destino atomicamente quando possível. `pushChunks()` emite `SyncTransferProgress`; a sobrecarga com `Path` transmite o arquivo sem carregá-lo inteiro e deriva permissões POSIX e data de modificação. Limites são configuráveis, cancelamento fecha a sessão e os frames permanecem limitados a 64 KiB.
 

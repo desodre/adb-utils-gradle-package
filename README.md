@@ -48,9 +48,15 @@ Finite operations are suspending and own a fresh connection. `AdbDevice` is a se
 adb.trackDevices().collect { devices ->
     devices.forEach { println("${it.serial}: ${it.state}") }
 }
+
+val ready = adb.waitForDevice(
+    serial = DeviceSerial("R58M..."),
+    state = DeviceState.DEVICE,
+    timeoutMillis = 30_000,
+)
 ```
 
-The cold `Flow` owns one connection per collector. Cancellation closes it. Snapshots are emitted as received; reconnection is not automatic.
+The cold `Flow` owns one connection per collector. Cancellation closes it. Snapshots are emitted as received; reconnection is not automatic. `waitForDevice()` consumes this stream until the requested serial and state appear, which is useful after reboot; timeout raises `AdbTimeoutException` and always closes the tracking connection.
 
 ## Files, packages and forwarding
 
@@ -78,7 +84,7 @@ Version 0.2.0 supports fixed TCP forwarding endpoints. Callers must remove mappi
 ## Current scope
 
 - Host version, long device listing and typed device selection.
-- Legacy shell, Shell v2, getprop and device tracking with `Flow`.
+- Legacy shell, Shell v2, getprop, device tracking with `Flow` and state waiting with timeout.
 - ADB SYNC v1 stat/list, in-memory transfers, streaming flows and local file sources/sinks.
 - Package install/uninstall and TCP forward/reverse.
 - Text shell APIs reject malformed UTF-8; binary Shell v2 output is not exposed.
