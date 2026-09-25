@@ -97,20 +97,32 @@ public class AdbClient(
     internal suspend fun hostCommand(service: String) = session { it.request(service) }
 
     private suspend fun <T> managedSession(block: suspend (AdbProtocol) -> T): T {
-        val transport = transportFactory()
+        val connection = openConnection()
         var failure: Throwable? = null
         try {
-            transport.connect()
-            return block(AdbProtocol(transport))
+            return block(connection.protocol)
         } catch (error: Throwable) {
             failure = error
             throw error
         } finally {
             withContext(NonCancellable) {
-                try { transport.close() } catch (closeError: Throwable) {
+                try { connection.close() } catch (closeError: Throwable) {
                     if (failure != null) failure.addSuppressed(closeError) else throw closeError
                 }
             }
+        }
+    }
+
+    internal suspend fun openConnection(): AdbConnection {
+        val transport = transportFactory()
+        try {
+            transport.connect()
+            return AdbConnection(transport)
+        } catch (error: Throwable) {
+            withContext(NonCancellable) {
+                try { transport.close() } catch (closeError: Throwable) { error.addSuppressed(closeError) }
+            }
+            throw error
         }
     }
 }

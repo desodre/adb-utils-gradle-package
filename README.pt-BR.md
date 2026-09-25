@@ -72,6 +72,7 @@ O timeout limita sessões finitas completas e a conexão TCP. Tracking não poss
 - Seleção por serial e `host:transport:<serial>` seguido de shell na mesma sessão.
 - Shell legado não interativo e leitura de uma propriedade por `getprop`, sem cache.
 - Shell v2 com stdout/stderr separados e exit code.
+- Shell v2 interativo com stdin, saída binária, backpressure e ciclo de vida explícito.
 - `trackDevices()` como cold `Flow`, com sessão independente por collector.
 - `waitForDevice()` para aguardar serial e estado específicos com timeout.
 - ADB SYNC v1: `stat`, `list`, operações em memória, streaming e arquivos locais.
@@ -100,6 +101,24 @@ val ready = adb.waitForDevice(
 ```
 
 Ausência temporária e estados intermediários continuam sendo observados. O timeout lança `AdbTimeoutException`; sucesso, timeout e cancelamento sempre encerram a conexão de tracking.
+
+Uma sessão interativa mantém sua própria conexão até a saída remota ou o cancelamento:
+
+```kotlin
+val session = device.openInteractiveShell("sh")
+try {
+    session.writeStdin("echo olá\nexit\n".encodeToByteArray())
+    session.closeStdin()
+    session.output.collect { chunk ->
+        println("${chunk.stream}: ${chunk.data.decodeToString()}")
+    }
+    println(session.awaitTermination())
+} finally {
+    session.cancel()
+}
+```
+
+`output` é um `Flow` binário de consumidor único, com buffer limitado e stdout/stderr identificados. `closeStdin()` encerra apenas a entrada; `cancel()` força o fechamento e aguarda a coroutine leitora. A primeira versão exige Shell v2 (Android API 24+) e retorna `ShellV2UnsupportedException` quando o serviço não está disponível. A decisão completa está em [`docs/decisions/0001-interactive-shell-api.md`](docs/decisions/0001-interactive-shell-api.md).
 
 SYNC aceita caminhos de até 1024 bytes UTF-8. `pull()` mantém o limite padrão de 64 MiB em memória. `pullChunks()` fornece `Flow<ByteArray>` e `pullTo()` grava por arquivo temporário, substituindo o destino atomicamente quando possível. `pushChunks()` emite `SyncTransferProgress`; a sobrecarga com `Path` transmite o arquivo sem carregá-lo inteiro e deriva permissões POSIX e data de modificação. Limites são configuráveis, cancelamento fecha a sessão e os frames permanecem limitados a 64 KiB.
 

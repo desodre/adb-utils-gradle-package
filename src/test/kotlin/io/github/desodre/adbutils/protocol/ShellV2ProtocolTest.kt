@@ -13,4 +13,17 @@ class ShellV2ProtocolTest {
         assertFailsWith<ShellOutputLimitException> { ShellV2Protocol.read(AdbProtocol(FakeTransport(frame(1, "large".encodeToByteArray()))), 4) }
         assertFailsWith<AdbProtocolException> { ShellV2Protocol.read(AdbProtocol(FakeTransport(byteArrayOf(1, 2, 0))), 10) }
     }
+
+    @Test fun `writes bounded stdin and close frames`() = runBlocking<Unit> {
+        val transport = FakeTransport(byteArrayOf())
+        val protocol = AdbProtocol(transport)
+
+        ShellV2Protocol.writeStdin(protocol, byteArrayOf(1, 2, 3, 4, 5), maxFrameBytes = 2)
+        ShellV2Protocol.writeCloseStdin(protocol)
+
+        assertContentEquals(frame(0, byteArrayOf(1, 2)), transport.writes[0])
+        assertContentEquals(frame(0, byteArrayOf(3, 4)), transport.writes[1])
+        assertContentEquals(frame(0, byteArrayOf(5)), transport.writes[2])
+        assertContentEquals(frame(4, byteArrayOf()), transport.writes[3])
+    }
 }
