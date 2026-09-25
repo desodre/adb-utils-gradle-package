@@ -42,6 +42,24 @@ suspend fun main() {
 
 Finite operations are suspending and own a fresh connection. `AdbDevice` is a serial-bound handle, not a persistent connection.
 
+## Interactive shell
+
+```kotlin
+val session = device.openInteractiveShell("sh")
+try {
+    session.writeStdin("echo hello\nexit\n".encodeToByteArray())
+    session.closeStdin()
+    session.output.collect { chunk ->
+        println("${chunk.stream}: ${chunk.data.decodeToString()}")
+    }
+    println(session.awaitTermination())
+} finally {
+    session.cancel()
+}
+```
+
+Interactive sessions use binary-safe Shell v2 frames and keep stdout and stderr distinct. Output is a single-consumer `Flow` backed by a bounded buffer, so a slow collector applies backpressure. `closeStdin()` gracefully half-closes input; `cancel()` force-closes the transport. Shell v2 requires Android API 24 or newer and unsupported devices raise `ShellV2UnsupportedException`.
+
 ## Tracking
 
 ```kotlin
@@ -99,7 +117,7 @@ The snapshot collects battery, `/data` storage, memory, uptime, Android version 
 ## Current scope
 
 - Host version, long device listing and typed device selection.
-- Legacy shell, Shell v2, getprop, device tracking with `Flow` and state waiting with timeout.
+- Legacy shell, finite and interactive Shell v2, getprop, device tracking with `Flow` and state waiting with timeout.
 - ADB SYNC v1 stat/list, in-memory transfers, streaming flows and local file sources/sinks.
 - Package install/uninstall and TCP forward/reverse.
 - Structured partial device-health snapshots with per-section timeouts.

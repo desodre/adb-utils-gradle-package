@@ -23,6 +23,8 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public final fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listForwards (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listReverses (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun openInteractiveShell (Ljava/lang/String;Lio/github/desodre/adbutils/model/InteractiveShellOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun openInteractiveShell$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/lang/String;Lio/github/desodre/adbutils/model/InteractiveShellOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun pull (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun pull$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/lang/String;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun pullChunks (Ljava/lang/String;J)Lkotlinx/coroutines/flow/Flow;
@@ -46,6 +48,14 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public final fun stat (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun uninstall (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun uninstall$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/lang/String;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/desodre/adbutils/client/InteractiveShellSession {
+	public final fun awaitTermination (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun cancel (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun closeStdin (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getOutput ()Lkotlinx/coroutines/flow/Flow;
+	public final fun writeStdin ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class io/github/desodre/adbutils/error/AdbConnectionException : io/github/desodre/adbutils/error/AdbException {
@@ -115,9 +125,18 @@ public final class io/github/desodre/adbutils/error/PackageOperationException : 
 	public fun <init> (Ljava/lang/String;)V
 }
 
+public final class io/github/desodre/adbutils/error/ShellFrameLimitException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (I)V
+	public final fun getMaxBytes ()I
+}
+
 public final class io/github/desodre/adbutils/error/ShellOutputLimitException : io/github/desodre/adbutils/error/AdbException {
 	public fun <init> (I)V
 	public final fun getMaxBytes ()I
+}
+
+public final class io/github/desodre/adbutils/error/ShellV2UnsupportedException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (Lio/github/desodre/adbutils/error/AdbFailException;)V
 }
 
 public final class io/github/desodre/adbutils/error/SyncTransferLimitException : io/github/desodre/adbutils/error/AdbException {
@@ -410,6 +429,21 @@ public final class io/github/desodre/adbutils/model/InstallResult {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/desodre/adbutils/model/InteractiveShellOptions {
+	public fun <init> ()V
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lio/github/desodre/adbutils/model/InteractiveShellOptions;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/InteractiveShellOptions;IIILjava/lang/Object;)Lio/github/desodre/adbutils/model/InteractiveShellOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxFrameBytes ()I
+	public final fun getOutputBufferCapacity ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/MemoryHealth {
 	public fun <init> (JJJJJ)V
 	public final fun component1 ()J
@@ -485,6 +519,27 @@ public final class io/github/desodre/adbutils/model/ReverseForward {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/desodre/adbutils/model/ShellOutputChunk {
+	public fun <init> (Lio/github/desodre/adbutils/model/ShellOutputStream;[B)V
+	public final fun component1 ()Lio/github/desodre/adbutils/model/ShellOutputStream;
+	public final fun component2 ()[B
+	public final fun copy (Lio/github/desodre/adbutils/model/ShellOutputStream;[B)Lio/github/desodre/adbutils/model/ShellOutputChunk;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/ShellOutputChunk;Lio/github/desodre/adbutils/model/ShellOutputStream;[BILjava/lang/Object;)Lio/github/desodre/adbutils/model/ShellOutputChunk;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()[B
+	public final fun getStream ()Lio/github/desodre/adbutils/model/ShellOutputStream;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/ShellOutputStream : java/lang/Enum {
+	public static final field STDERR Lio/github/desodre/adbutils/model/ShellOutputStream;
+	public static final field STDOUT Lio/github/desodre/adbutils/model/ShellOutputStream;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/ShellOutputStream;
+	public static fun values ()[Lio/github/desodre/adbutils/model/ShellOutputStream;
+}
+
 public final class io/github/desodre/adbutils/model/ShellResult {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;I)V
 	public final fun component1 ()Ljava/lang/String;
@@ -496,6 +551,38 @@ public final class io/github/desodre/adbutils/model/ShellResult {
 	public final fun getExitCode ()I
 	public final fun getStderr ()Ljava/lang/String;
 	public final fun getStdout ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/desodre/adbutils/model/ShellTermination {
+}
+
+public final class io/github/desodre/adbutils/model/ShellTermination$Cancelled : io/github/desodre/adbutils/model/ShellTermination {
+	public static final field INSTANCE Lio/github/desodre/adbutils/model/ShellTermination$Cancelled;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/ShellTermination$Exited : io/github/desodre/adbutils/model/ShellTermination {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/desodre/adbutils/model/ShellTermination$Exited;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/ShellTermination$Exited;IILjava/lang/Object;)Lio/github/desodre/adbutils/model/ShellTermination$Exited;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExitCode ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/ShellTermination$Failed : io/github/desodre/adbutils/model/ShellTermination {
+	public fun <init> (Ljava/lang/Throwable;)V
+	public final fun component1 ()Ljava/lang/Throwable;
+	public final fun copy (Ljava/lang/Throwable;)Lio/github/desodre/adbutils/model/ShellTermination$Failed;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/ShellTermination$Failed;Ljava/lang/Throwable;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/ShellTermination$Failed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

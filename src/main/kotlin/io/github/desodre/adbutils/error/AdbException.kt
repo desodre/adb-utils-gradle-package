@@ -16,5 +16,8 @@ public open class DeviceUnavailableException(public val serial: DeviceSerial, pu
 public class DeviceUnauthorizedException(serial: DeviceSerial, cause: Throwable? = null) : DeviceUnavailableException(serial, DeviceState.UNAUTHORIZED, cause)
 public class DeviceOfflineException(serial: DeviceSerial, cause: Throwable? = null) : DeviceUnavailableException(serial, DeviceState.OFFLINE, cause)
 public class ShellOutputLimitException(public val maxBytes: Int) : AdbException("Shell output exceeded $maxBytes bytes")
+public class ShellFrameLimitException(public val maxBytes: Int) : AdbException("Shell frame exceeded $maxBytes bytes")
+public class ShellV2UnsupportedException(cause: AdbFailException) :
+    AdbException("Interactive Shell v2 is unavailable: ${cause.reason}", cause)
 public class SyncTransferLimitException(public val maxBytes: Long) : AdbException("SYNC transfer exceeded $maxBytes bytes")
 public class PackageOperationException(message: String) : AdbException(message)

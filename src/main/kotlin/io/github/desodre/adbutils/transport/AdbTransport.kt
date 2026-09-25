@@ -1,6 +1,9 @@
 package io.github.desodre.adbutils.transport
 
-/** A single session, used sequentially. Factories must return a fresh instance per operation. */
+/**
+ * A single session. Implementations support one concurrent reader and writer; callers serialize
+ * writes and never perform multiple reads concurrently. Factories return a fresh instance per operation.
+ */
 public interface AdbTransport {
     public suspend fun connect(): Unit
     public suspend fun write(data: ByteArray): Unit

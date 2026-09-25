@@ -51,6 +51,38 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
         }
     }
 
+    /**
+     * Opens an owned, bidirectional Shell v2 session. An empty command starts the default shell.
+     * The returned session must reach remote exit or be cancelled by the caller.
+     */
+    public suspend fun openInteractiveShell(
+        command: String = "",
+        options: InteractiveShellOptions = InteractiveShellOptions(),
+    ): InteractiveShellSession {
+        require('\u0000' !in command) { "Shell command cannot contain NUL" }
+        val connection = client.openConnection()
+        var failure: Throwable? = null
+        try {
+            selectTransport(connection.protocol)
+            try {
+                connection.protocol.request("shell,v2,raw:$command")
+            } catch (error: AdbFailException) {
+                throw ShellV2UnsupportedException(error)
+            }
+            return InteractiveShellSession(connection, options)
+        } catch (error: Throwable) {
+            failure = error
+            throw error
+        } finally {
+            val primaryFailure = failure
+            if (primaryFailure != null) {
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    try { connection.close() } catch (closeError: Throwable) { primaryFailure.addSuppressed(closeError) }
+                }
+            }
+        }
+    }
+
     /** Reads one property without caching. An absent property returns an empty string. */
     public suspend fun getprop(name: String): String {
         require(name.matches(Regex("[A-Za-z0-9_][A-Za-z0-9_.-]*"))) { "Invalid Android property name" }
