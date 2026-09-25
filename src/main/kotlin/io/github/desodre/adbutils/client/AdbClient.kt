@@ -4,6 +4,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import io.github.desodre.adbutils.error.*
 import io.github.desodre.adbutils.model.*
@@ -41,6 +42,23 @@ public class AdbClient(
             protocol.request("host:track-devices-l")
             while (true) emit(DeviceListParser.parse(AdbCodec.decodeText(protocol.readPayloadBytes())))
         }
+    }
+
+    /**
+     * Waits until [serial] is advertised in [state] by the ADB server and returns its latest metadata.
+     * Temporary absence and intermediate states are observed rather than treated as failures.
+     */
+    public suspend fun waitForDevice(
+        serial: DeviceSerial,
+        state: DeviceState = DeviceState.DEVICE,
+        timeoutMillis: Long = this.timeoutMillis.toLong(),
+    ): DeviceInfo {
+        require(timeoutMillis > 0) { "timeoutMillis must be positive" }
+        return withTimeoutOrNull(timeoutMillis) {
+            trackDevices()
+                .first { devices -> devices.any { it.serial == serial && it.state == state } }
+                .first { it.serial == serial && it.state == state }
+        } ?: throw AdbTimeoutException()
     }
 
     /** Without a serial, selects the sole DEVICE entry. Other states are available in devices(). */
