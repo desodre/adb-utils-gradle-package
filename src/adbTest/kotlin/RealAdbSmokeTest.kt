@@ -2,6 +2,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import io.github.desodre.adbutils.client.AdbClient
 import io.github.desodre.adbutils.model.TcpPort
+import io.github.desodre.adbutils.model.HealthSection
 import kotlin.test.*
 
 class RealAdbSmokeTest {
@@ -10,6 +11,9 @@ class RealAdbSmokeTest {
         val device = adb.device()
         assertTrue(adb.trackDevices().first().any { it.serial == device.serial })
         assertEquals(7, device.shellV2("sh -c 'exit 7'").exitCode)
+        val health = device.healthSnapshot()
+        assertIs<HealthSection.Available<*>>(health.uptime)
+        assertIs<HealthSection.Available<*>>(health.android)
 
         val path = "/data/local/tmp/adb-utils-release-smoke.txt"
         val content = "adb-utils".encodeToByteArray()
