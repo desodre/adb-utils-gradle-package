@@ -75,12 +75,28 @@ On Android, the overloads based on `java.nio.file.Path` require API 26 or newer;
 
 Version 0.2.0 supports fixed TCP forwarding endpoints. Callers must remove mappings they create.
 
+## Device health
+
+```kotlin
+val health = device.healthSnapshot(
+    DeviceHealthOptions(sectionTimeoutMillis = 2_000),
+)
+
+when (val battery = health.battery) {
+    is HealthSection.Available -> println("battery=${battery.value.levelPercent}%")
+    is HealthSection.Unavailable -> println("battery unavailable: ${battery.failure.kind}")
+}
+```
+
+The snapshot collects battery, `/data` storage, memory, uptime, Android version and hardware sections concurrently. Every section has its own timeout and failure, so one unsupported or malformed source does not discard successful data. Sizes are bytes, uptime is milliseconds and battery temperature is tenths of a Celsius degree. Hardware serial properties are excluded unless `includeIdentifiers = true` is explicitly requested.
+
 ## Current scope
 
 - Host version, long device listing and typed device selection.
 - Legacy shell, Shell v2, getprop and device tracking with `Flow`.
 - ADB SYNC v1 stat/list, in-memory transfers, streaming flows and local file sources/sinks.
 - Package install/uninstall and TCP forward/reverse.
+- Structured partial device-health snapshots with per-section timeouts.
 - Text shell APIs reject malformed UTF-8; binary Shell v2 output is not exposed.
 - The SDK does not start the ADB Server.
 - The API is pre-1.0 and may change between minor versions.
@@ -111,7 +127,7 @@ Feature coverage and versions evolve independently in each ecosystem.
 
 ## Roadmap
 
-- Logcat as `Flow`, screenshots and diagnostics.
+- Logcat as `Flow` and screenshots.
 - CLI, Compose Desktop and Kotlin Multiplatform/Native.
 
 See [CHANGELOG.md](CHANGELOG.md). Licensed under the [MIT License](LICENSE).

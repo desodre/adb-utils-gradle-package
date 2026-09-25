@@ -14,6 +14,8 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public static synthetic fun forward-C3Gbq2o$default (Lio/github/desodre/adbutils/client/AdbDevice;IIZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun getSerial-_Mf9vZg ()Ljava/lang/String;
 	public final fun getprop (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun healthSnapshot (Lio/github/desodre/adbutils/model/DeviceHealthOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun healthSnapshot$default (Lio/github/desodre/adbutils/client/AdbDevice;Lio/github/desodre/adbutils/model/DeviceHealthOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun install ([BLio/github/desodre/adbutils/model/InstallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun install$default (Lio/github/desodre/adbutils/client/AdbDevice;[BLio/github/desodre/adbutils/model/InstallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -135,6 +137,122 @@ public final class io/github/desodre/adbutils/model/AdbVersion {
 	public final synthetic fun unbox-impl ()I
 }
 
+public final class io/github/desodre/adbutils/model/AndroidVersionInfo {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lio/github/desodre/adbutils/model/AndroidVersionInfo;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/AndroidVersionInfo;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/AndroidVersionInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBuildId ()Ljava/lang/String;
+	public final fun getRelease ()Ljava/lang/String;
+	public final fun getSdk ()Ljava/lang/Integer;
+	public final fun getSecurityPatch ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/BatteryCondition : java/lang/Enum {
+	public static final field COLD Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field DEAD Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field GOOD Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field OVERHEAT Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field OVER_VOLTAGE Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field UNKNOWN Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static final field UNSPECIFIED_FAILURE Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/BatteryCondition;
+	public static fun values ()[Lio/github/desodre/adbutils/model/BatteryCondition;
+}
+
+public final class io/github/desodre/adbutils/model/BatteryHealth {
+	public fun <init> (Ljava/lang/Integer;Lio/github/desodre/adbutils/model/BatteryStatus;Lio/github/desodre/adbutils/model/BatteryCondition;Ljava/lang/Boolean;Ljava/util/Set;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/Integer;
+	public final fun component2 ()Lio/github/desodre/adbutils/model/BatteryStatus;
+	public final fun component3 ()Lio/github/desodre/adbutils/model/BatteryCondition;
+	public final fun component4 ()Ljava/lang/Boolean;
+	public final fun component5 ()Ljava/util/Set;
+	public final fun component6 ()Ljava/lang/Integer;
+	public final fun component7 ()Ljava/lang/Integer;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/Integer;Lio/github/desodre/adbutils/model/BatteryStatus;Lio/github/desodre/adbutils/model/BatteryCondition;Ljava/lang/Boolean;Ljava/util/Set;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/String;)Lio/github/desodre/adbutils/model/BatteryHealth;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/BatteryHealth;Ljava/lang/Integer;Lio/github/desodre/adbutils/model/BatteryStatus;Lio/github/desodre/adbutils/model/BatteryCondition;Ljava/lang/Boolean;Ljava/util/Set;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/BatteryHealth;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCondition ()Lio/github/desodre/adbutils/model/BatteryCondition;
+	public final fun getLevelPercent ()Ljava/lang/Integer;
+	public final fun getPowerSources ()Ljava/util/Set;
+	public final fun getPresent ()Ljava/lang/Boolean;
+	public final fun getStatus ()Lio/github/desodre/adbutils/model/BatteryStatus;
+	public final fun getTechnology ()Ljava/lang/String;
+	public final fun getTemperatureDeciCelsius ()Ljava/lang/Integer;
+	public final fun getVoltageMillivolts ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/BatteryPowerSource : java/lang/Enum {
+	public static final field AC Lio/github/desodre/adbutils/model/BatteryPowerSource;
+	public static final field DOCK Lio/github/desodre/adbutils/model/BatteryPowerSource;
+	public static final field USB Lio/github/desodre/adbutils/model/BatteryPowerSource;
+	public static final field WIRELESS Lio/github/desodre/adbutils/model/BatteryPowerSource;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/BatteryPowerSource;
+	public static fun values ()[Lio/github/desodre/adbutils/model/BatteryPowerSource;
+}
+
+public final class io/github/desodre/adbutils/model/BatteryStatus : java/lang/Enum {
+	public static final field CHARGING Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static final field DISCHARGING Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static final field FULL Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static final field NOT_CHARGING Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static final field UNKNOWN Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/BatteryStatus;
+	public static fun values ()[Lio/github/desodre/adbutils/model/BatteryStatus;
+}
+
+public final class io/github/desodre/adbutils/model/DeviceHealthOptions {
+	public fun <init> ()V
+	public fun <init> (JIZ)V
+	public synthetic fun <init> (JIZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()I
+	public final fun component3 ()Z
+	public final fun copy (JIZ)Lio/github/desodre/adbutils/model/DeviceHealthOptions;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/DeviceHealthOptions;JIZILjava/lang/Object;)Lio/github/desodre/adbutils/model/DeviceHealthOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIncludeIdentifiers ()Z
+	public final fun getMaxOutputBytes ()I
+	public final fun getSectionTimeoutMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/DeviceHealthSnapshot {
+	public fun <init> (JLio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;)V
+	public final fun component1 ()J
+	public final fun component2 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun component3 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun component4 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun component5 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun component6 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun component7 ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun copy (JLio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;)Lio/github/desodre/adbutils/model/DeviceHealthSnapshot;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/DeviceHealthSnapshot;JLio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;Lio/github/desodre/adbutils/model/HealthSection;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/DeviceHealthSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAndroid ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun getBattery ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun getCollectedAtEpochMillis ()J
+	public final fun getHardware ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun getMemory ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun getStorage ()Lio/github/desodre/adbutils/model/HealthSection;
+	public final fun getUptime ()Lio/github/desodre/adbutils/model/HealthSection;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/DeviceInfo {
 	public synthetic fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/DeviceState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/DeviceState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -191,6 +309,75 @@ public final class io/github/desodre/adbutils/model/DeviceState$Companion {
 	public final fun fromWire (Ljava/lang/String;)Lio/github/desodre/adbutils/model/DeviceState;
 }
 
+public final class io/github/desodre/adbutils/model/DiagnosticFailure {
+	public fun <init> (Lio/github/desodre/adbutils/model/DiagnosticFailureKind;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lio/github/desodre/adbutils/model/DiagnosticFailureKind;Ljava/lang/String;)Lio/github/desodre/adbutils/model/DiagnosticFailure;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/DiagnosticFailure;Lio/github/desodre/adbutils/model/DiagnosticFailureKind;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/DiagnosticFailure;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKind ()Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/DiagnosticFailureKind : java/lang/Enum {
+	public static final field COMMAND_FAILED Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public static final field MALFORMED_OUTPUT Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public static final field TIMEOUT Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public static final field UNAVAILABLE Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+	public static fun values ()[Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
+}
+
+public final class io/github/desodre/adbutils/model/HardwareInfo {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/desodre/adbutils/model/HardwareInfo;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/HardwareInfo;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/HardwareInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDevice ()Ljava/lang/String;
+	public final fun getManufacturer ()Ljava/lang/String;
+	public final fun getModel ()Ljava/lang/String;
+	public final fun getPrimaryAbi ()Ljava/lang/String;
+	public final fun getProduct ()Ljava/lang/String;
+	public final fun getSerialNumber ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/desodre/adbutils/model/HealthSection {
+}
+
+public final class io/github/desodre/adbutils/model/HealthSection$Available : io/github/desodre/adbutils/model/HealthSection {
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;)Lio/github/desodre/adbutils/model/HealthSection$Available;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/HealthSection$Available;Ljava/lang/Object;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/HealthSection$Available;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/HealthSection$Unavailable : io/github/desodre/adbutils/model/HealthSection {
+	public fun <init> (Lio/github/desodre/adbutils/model/DiagnosticFailure;)V
+	public final fun component1 ()Lio/github/desodre/adbutils/model/DiagnosticFailure;
+	public final fun copy (Lio/github/desodre/adbutils/model/DiagnosticFailure;)Lio/github/desodre/adbutils/model/HealthSection$Unavailable;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/HealthSection$Unavailable;Lio/github/desodre/adbutils/model/DiagnosticFailure;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/HealthSection$Unavailable;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailure ()Lio/github/desodre/adbutils/model/DiagnosticFailure;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/InstallOptions {
 	public fun <init> ()V
 	public fun <init> (ZZZZ)V
@@ -217,6 +404,25 @@ public final class io/github/desodre/adbutils/model/InstallResult {
 	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/InstallResult;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/InstallResult;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/MemoryHealth {
+	public fun <init> (JJJJJ)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()J
+	public final fun copy (JJJJJ)Lio/github/desodre/adbutils/model/MemoryHealth;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/MemoryHealth;JJJJJILjava/lang/Object;)Lio/github/desodre/adbutils/model/MemoryHealth;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvailableBytes ()J
+	public final fun getSwapFreeBytes ()J
+	public final fun getSwapTotalBytes ()J
+	public final fun getTotalBytes ()J
+	public final fun getUsedBytes ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -292,6 +498,25 @@ public final class io/github/desodre/adbutils/model/ShellResult {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/desodre/adbutils/model/StorageHealth {
+	public fun <init> (Ljava/lang/String;JJJLjava/lang/Integer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;JJJLjava/lang/Integer;)Lio/github/desodre/adbutils/model/StorageHealth;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/StorageHealth;Ljava/lang/String;JJJLjava/lang/Integer;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/StorageHealth;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvailableBytes ()J
+	public final fun getMountPoint ()Ljava/lang/String;
+	public final fun getTotalBytes ()J
+	public final fun getUsagePercent ()Ljava/lang/Integer;
+	public final fun getUsedBytes ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/SyncTransferProgress {
 	public fun <init> (J)V
 	public final fun component1 ()J
@@ -326,6 +551,19 @@ public final class io/github/desodre/adbutils/model/TcpPort {
 	public fun toString ()Ljava/lang/String;
 	public static fun toString-impl (I)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()I
+}
+
+public final class io/github/desodre/adbutils/model/UptimeHealth {
+	public fun <init> (JLjava/lang/Long;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (JLjava/lang/Long;)Lio/github/desodre/adbutils/model/UptimeHealth;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/UptimeHealth;JLjava/lang/Long;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/UptimeHealth;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIdleMillis ()Ljava/lang/Long;
+	public final fun getUptimeMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class io/github/desodre/adbutils/transport/AdbTransport {

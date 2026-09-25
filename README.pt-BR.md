@@ -76,6 +76,7 @@ O timeout limita sessões finitas completas e a conexão TCP. Tracking não poss
 - ADB SYNC v1: `stat`, `list`, operações em memória, streaming e arquivos locais.
 - `install`/`uninstall` via SYNC e Package Manager, sem subprocessos.
 - Forward/reverse TCP, listagem e remoção com endpoints tipados.
+- Snapshot estruturado de bateria, armazenamento, memória, uptime, Android e hardware.
 
 `devices()` inclui todos os estados. `device()` considera disponíveis somente entradas em estado `DEVICE`: zero produz `NoDevicesException` (com a lista detectada); uma é selecionada; duas ou mais produzem `MultipleDevicesException`, com os seriais. A seleção explícita diferencia serial ausente, offline, unauthorized e outros estados indisponíveis. Recovery, bootloader e sideload são modelados, mas não selecionáveis nesta milestone.
 
@@ -94,6 +95,21 @@ No Android, as sobrecargas baseadas em `java.nio.file.Path` exigem API 26 ou sup
 `install()` envia o APK para `/data/local/tmp`, executa `pm install` por Shell v2 e tenta remover o temporário no final. O resultado informa sucesso e mensagem; a execução real de instalação não fez parte do smoke test 0.2 por não haver APK de fixture. `uninstall()` exige package name validado e lança `PackageOperationException` em falha.
 
 Forward e reverse suportam somente endpoints `tcp:<port>` fixos nesta versão; porta zero e outros namespaces ainda não são aceitos. A remoção é responsabilidade do chamador.
+
+## Diagnóstico de saúde
+
+```kotlin
+val health = device.healthSnapshot(
+    DeviceHealthOptions(sectionTimeoutMillis = 2_000),
+)
+
+when (val battery = health.battery) {
+    is HealthSection.Available -> println("bateria=${battery.value.levelPercent}%")
+    is HealthSection.Unavailable -> println("indisponível: ${battery.failure.kind}")
+}
+```
+
+Bateria, armazenamento de `/data`, memória, uptime, versão Android e hardware são coletados concorrentemente. Cada seção possui timeout e falha próprios, portanto uma fonte ausente, incompatível ou malformada não elimina os demais resultados. Tamanhos usam bytes, uptime usa milissegundos e temperatura da bateria usa décimos de grau Celsius. Seriais de hardware não são consultados por padrão; habilite explicitamente `includeIdentifiers = true` quando esse dado for necessário.
 
 ## Estrutura e erros
 
@@ -116,7 +132,7 @@ Erros distinguíveis: `AdbServerUnavailableException` (conexão recusada), `AdbC
 
 - logcat com `Flow` e screenshot.
 - Suporte a endpoints de forward que não sejam TCP.
-- Inspeção de pacotes/processos e diagnósticos de dispositivos.
+- Inspeção de pacotes/processos e diagnósticos adicionais.
 - CLI e Compose Desktop sobre o SDK.
 - Avaliar Kotlin Multiplatform/Native.
 

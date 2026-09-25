@@ -1,6 +1,7 @@
 package io.github.desodre.adbutils.client
 
 import io.github.desodre.adbutils.error.*
+import io.github.desodre.adbutils.diagnostics.DeviceHealthCollector
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.ShellResult
 import io.github.desodre.adbutils.protocol.ShellV2Protocol
@@ -22,6 +23,10 @@ import kotlinx.coroutines.withContext
 
 /** A serial-bound handle, not a persistent connection or a guarantee that the device remains online. */
 public class AdbDevice internal constructor(private val client: AdbClient, public val serial: DeviceSerial) {
+    /** Collects bounded diagnostic sections concurrently; individual failures remain in the snapshot. */
+    public suspend fun healthSnapshot(options: DeviceHealthOptions = DeviceHealthOptions()): DeviceHealthSnapshot =
+        DeviceHealthCollector.collect(this, options)
+
     /**
      * Executes a non-interactive legacy shell command as supplied, including shell metacharacters.
      * Returns UTF-8 output up to EOF; legacy shell provides no exit code or separate stderr.
