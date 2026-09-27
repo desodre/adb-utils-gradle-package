@@ -4,9 +4,11 @@ import io.github.desodre.adbutils.error.*
 import io.github.desodre.adbutils.diagnostics.DeviceHealthCollector
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.ShellResult
+import io.github.desodre.adbutils.protocol.AdbCodec
 import io.github.desodre.adbutils.protocol.ShellV2Protocol
 import io.github.desodre.adbutils.protocol.SyncProtocol
 import io.github.desodre.adbutils.model.*
+import java.io.ByteArrayOutputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -48,6 +50,68 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
             selectTransport(protocol)
             protocol.request("shell,v2,raw:$command")
             ShellV2Protocol.read(protocol, maxOutputBytes)
+        }
+    }
+
+    /** Captures a binary PNG through the raw `exec:screencap -p` service without a remote file. */
+    public suspend fun screenshot(maxBytes: Int = DEFAULT_SCREENSHOT_MAX_BYTES): ByteArray {
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val output = ByteArrayOutputStream(minOf(maxBytes, 1024 * 1024))
+        readScreenshot(maxBytes.toLong()) { output.write(it) }
+        return output.toByteArray()
+    }
+
+    /**
+     * Streams a PNG to a temporary sibling of [destination], validates it, then replaces the
+     * destination atomically when the filesystem supports it. Returns the number of bytes written.
+     */
+    public suspend fun screenshotTo(
+        destination: Path,
+        maxBytes: Long = DEFAULT_SCREENSHOT_MAX_BYTES.toLong(),
+    ): Long = withContext(Dispatchers.IO) {
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val absoluteDestination = destination.toAbsolutePath()
+        val parent = requireNotNull(absoluteDestination.parent) { "Destination must have a parent directory" }
+        val temporary = Files.createTempFile(parent, ".${absoluteDestination.fileName}.", ".part")
+        try {
+            val written = Files.newOutputStream(temporary, StandardOpenOption.TRUNCATE_EXISTING).buffered().use { output ->
+                readScreenshot(maxBytes) { output.write(it) }
+            }
+            moveReplacing(temporary, absoluteDestination)
+            written
+        } catch (error: Throwable) {
+            Files.deleteIfExists(temporary)
+            throw error
+        }
+    }
+
+    /**
+     * Streams logcat as a cold, backpressured Flow. Every collector owns one ADB connection;
+     * cancelling collection closes the transport and stops the remote logcat process.
+     */
+    public fun logcat(options: LogcatOptions = LogcatOptions()): Flow<LogcatEntry> = flow {
+        if (options.clearBeforeStart) clearLogcat(options.buffers)
+        val parser = LogcatParser(options.format, options.maxLineBytes)
+        val stderr = ByteArrayOutputStream(minOf(options.maxLineBytes, 8 * 1024))
+        client.streamingSession { protocol ->
+            selectTransport(protocol)
+            protocol.request("shell,v2,raw:${logcatCommand(options)}")
+            while (true) {
+                when (val frame = ShellV2Protocol.readFrame(protocol, options.maxFrameBytes)) {
+                    is ShellV2Protocol.Frame.Stdout -> parser.accept(frame.data).forEach { emit(it) }
+                    is ShellV2Protocol.Frame.Stderr -> {
+                        val remaining = options.maxLineBytes - stderr.size()
+                        if (remaining > 0) stderr.write(frame.data, 0, minOf(remaining, frame.data.size))
+                    }
+                    is ShellV2Protocol.Frame.Exit -> {
+                        parser.finish().forEach { emit(it) }
+                        if (frame.exitCode != 0) {
+                            throw LogcatProcessException(frame.exitCode, AdbCodec.decodeText(stderr.toByteArray()))
+                        }
+                        return@streamingSession
+                    }
+                }
+            }
         }
     }
 
@@ -305,6 +369,82 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
         block(SyncProtocol(protocol))
     }
 
+    private suspend fun readScreenshot(maxBytes: Long, sink: suspend (ByteArray) -> Unit): Long {
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val signature = ByteArray(PNG_SIGNATURE.size)
+        var signatureSize = 0
+        var total = 0L
+        client.streamingSession { protocol ->
+            selectTransport(protocol)
+            protocol.request("exec:screencap -p")
+            while (true) {
+                val requestBytes = minOf(RAW_CHUNK_BYTES.toLong(), maxBytes - total + 1).coerceAtLeast(1).toInt()
+                val chunk = protocol.readRaw(requestBytes)
+                if (chunk.isEmpty()) break
+                if (chunk.size.toLong() > maxBytes - total) throw ScreenshotLimitException(maxBytes)
+                if (signatureSize < signature.size) {
+                    val count = minOf(signature.size - signatureSize, chunk.size)
+                    chunk.copyInto(signature, signatureSize, 0, count)
+                    signatureSize += count
+                }
+                sink(chunk)
+                total += chunk.size
+            }
+        }
+        if (signatureSize != PNG_SIGNATURE.size || !signature.contentEquals(PNG_SIGNATURE)) {
+            throw InvalidScreenshotException("screencap returned data without a PNG signature")
+        }
+        return total
+    }
+
+    private suspend fun clearLogcat(buffers: Set<LogcatBuffer>) {
+        val result = shellV2("logcat${logcatBufferArguments(buffers)} -c")
+        if (result.exitCode != 0) throw LogcatProcessException(result.exitCode, result.stderr)
+    }
+
+    private fun logcatCommand(options: LogcatOptions): String = buildString {
+        append("logcat")
+        append(logcatBufferArguments(options.buffers))
+        append(" -v ")
+        append(when (options.format) {
+            LogcatFormat.EPOCH -> "epoch"
+            LogcatFormat.RAW -> "raw"
+        })
+        if (options.filters.isNotEmpty()) {
+            options.filters.forEach { filter ->
+                append(' ')
+                append(filter.tag)
+                append(':')
+                append(logcatPriorityCode(filter.minimumPriority))
+            }
+            if (options.filters.none { it.tag == "*" }) append(" *:S")
+        }
+    }
+
+    private fun logcatBufferArguments(buffers: Set<LogcatBuffer>): String = buffers
+        .sortedBy { it.ordinal }
+        .joinToString(separator = "", transform = { " -b ${logcatBufferName(it)}" })
+
+    private fun logcatBufferName(buffer: LogcatBuffer): String = when (buffer) {
+        LogcatBuffer.MAIN -> "main"
+        LogcatBuffer.SYSTEM -> "system"
+        LogcatBuffer.RADIO -> "radio"
+        LogcatBuffer.EVENTS -> "events"
+        LogcatBuffer.CRASH -> "crash"
+        LogcatBuffer.DEFAULT -> "default"
+        LogcatBuffer.ALL -> "all"
+    }
+
+    private fun logcatPriorityCode(priority: LogcatPriority): Char = when (priority) {
+        LogcatPriority.VERBOSE -> 'V'
+        LogcatPriority.DEBUG -> 'D'
+        LogcatPriority.INFO -> 'I'
+        LogcatPriority.WARN -> 'W'
+        LogcatPriority.ERROR -> 'E'
+        LogcatPriority.FATAL -> 'F'
+        LogcatPriority.SILENT -> 'S'
+    }
+
     private fun validatePath(path: String): String {
         require(path.isNotBlank() && '\u0000' !in path) { "Remote path cannot be blank or contain NUL" }
         return path
@@ -385,5 +525,10 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
 
     private companion object {
         const val DEFAULT_FILE_MODE: Int = 0b110100100
+        const val DEFAULT_SCREENSHOT_MAX_BYTES: Int = 32 * 1024 * 1024
+        const val RAW_CHUNK_BYTES: Int = 16 * 1024
+        val PNG_SIGNATURE: ByteArray = byteArrayOf(
+            0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        )
     }
 }

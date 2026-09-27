@@ -23,6 +23,8 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public final fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listForwards (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listReverses (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun logcat (Lio/github/desodre/adbutils/model/LogcatOptions;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun logcat$default (Lio/github/desodre/adbutils/client/AdbDevice;Lio/github/desodre/adbutils/model/LogcatOptions;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public final fun openInteractiveShell (Ljava/lang/String;Lio/github/desodre/adbutils/model/InteractiveShellOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun openInteractiveShell$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/lang/String;Lio/github/desodre/adbutils/model/InteractiveShellOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun pull (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -41,6 +43,10 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public final fun removeReverse-gpHeikU (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun reverse-C3Gbq2o (IIZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun reverse-C3Gbq2o$default (Lio/github/desodre/adbutils/client/AdbDevice;IIZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun screenshot (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun screenshot$default (Lio/github/desodre/adbutils/client/AdbDevice;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun screenshotTo (Ljava/nio/file/Path;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun screenshotTo$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/nio/file/Path;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun shell (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun shell$default (Lio/github/desodre/adbutils/client/AdbDevice;Ljava/lang/String;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun shellV2 (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -111,6 +117,21 @@ public class io/github/desodre/adbutils/error/DeviceUnavailableException : io/gi
 	public final fun getState ()Lio/github/desodre/adbutils/model/DeviceState;
 }
 
+public final class io/github/desodre/adbutils/error/InvalidScreenshotException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class io/github/desodre/adbutils/error/LogcatLineLimitException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (I)V
+	public final fun getMaxBytes ()I
+}
+
+public final class io/github/desodre/adbutils/error/LogcatProcessException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (ILjava/lang/String;)V
+	public final fun getExitCode ()I
+	public final fun getStderr ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/error/MultipleDevicesException : io/github/desodre/adbutils/error/AdbException {
 	public fun <init> (Ljava/util/List;)V
 	public final fun getSerials ()Ljava/util/List;
@@ -123,6 +144,11 @@ public final class io/github/desodre/adbutils/error/NoDevicesException : io/gith
 
 public final class io/github/desodre/adbutils/error/PackageOperationException : io/github/desodre/adbutils/error/AdbException {
 	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class io/github/desodre/adbutils/error/ScreenshotLimitException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (J)V
+	public final fun getMaxBytes ()J
 }
 
 public final class io/github/desodre/adbutils/error/ShellFrameLimitException : io/github/desodre/adbutils/error/AdbException {
@@ -442,6 +468,101 @@ public final class io/github/desodre/adbutils/model/InteractiveShellOptions {
 	public final fun getOutputBufferCapacity ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatBuffer : java/lang/Enum {
+	public static final field ALL Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field CRASH Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field DEFAULT Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field EVENTS Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field MAIN Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field RADIO Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static final field SYSTEM Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LogcatBuffer;
+	public static fun values ()[Lio/github/desodre/adbutils/model/LogcatBuffer;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatEntry {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Ljava/lang/Integer;Ljava/lang/Integer;Lio/github/desodre/adbutils/model/LogcatPriority;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Ljava/lang/Integer;Ljava/lang/Integer;Lio/github/desodre/adbutils/model/LogcatPriority;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/time/Instant;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun component5 ()Ljava/lang/Integer;
+	public final fun component6 ()Lio/github/desodre/adbutils/model/LogcatPriority;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Ljava/lang/Integer;Ljava/lang/Integer;Lio/github/desodre/adbutils/model/LogcatPriority;Ljava/lang/String;)Lio/github/desodre/adbutils/model/LogcatEntry;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LogcatEntry;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Ljava/lang/Integer;Ljava/lang/Integer;Lio/github/desodre/adbutils/model/LogcatPriority;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/LogcatEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPriority ()Lio/github/desodre/adbutils/model/LogcatPriority;
+	public final fun getProcessId ()Ljava/lang/Integer;
+	public final fun getRawLine ()Ljava/lang/String;
+	public final fun getTag ()Ljava/lang/String;
+	public final fun getThreadId ()Ljava/lang/Integer;
+	public final fun getTimestamp ()Ljava/time/Instant;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatFilter {
+	public fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/LogcatPriority;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/LogcatPriority;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/desodre/adbutils/model/LogcatPriority;
+	public final fun copy (Ljava/lang/String;Lio/github/desodre/adbutils/model/LogcatPriority;)Lio/github/desodre/adbutils/model/LogcatFilter;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LogcatFilter;Ljava/lang/String;Lio/github/desodre/adbutils/model/LogcatPriority;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/LogcatFilter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMinimumPriority ()Lio/github/desodre/adbutils/model/LogcatPriority;
+	public final fun getTag ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatFormat : java/lang/Enum {
+	public static final field EPOCH Lio/github/desodre/adbutils/model/LogcatFormat;
+	public static final field RAW Lio/github/desodre/adbutils/model/LogcatFormat;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LogcatFormat;
+	public static fun values ()[Lio/github/desodre/adbutils/model/LogcatFormat;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatOptions {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Set;Lio/github/desodre/adbutils/model/LogcatFormat;Ljava/util/List;ZII)V
+	public synthetic fun <init> (Ljava/util/Set;Lio/github/desodre/adbutils/model/LogcatFormat;Ljava/util/List;ZIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/Set;
+	public final fun component2 ()Lio/github/desodre/adbutils/model/LogcatFormat;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Z
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun copy (Ljava/util/Set;Lio/github/desodre/adbutils/model/LogcatFormat;Ljava/util/List;ZII)Lio/github/desodre/adbutils/model/LogcatOptions;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LogcatOptions;Ljava/util/Set;Lio/github/desodre/adbutils/model/LogcatFormat;Ljava/util/List;ZIIILjava/lang/Object;)Lio/github/desodre/adbutils/model/LogcatOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBuffers ()Ljava/util/Set;
+	public final fun getClearBeforeStart ()Z
+	public final fun getFilters ()Ljava/util/List;
+	public final fun getFormat ()Lio/github/desodre/adbutils/model/LogcatFormat;
+	public final fun getMaxFrameBytes ()I
+	public final fun getMaxLineBytes ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LogcatPriority : java/lang/Enum {
+	public static final field DEBUG Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field ERROR Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field FATAL Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field INFO Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field SILENT Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field VERBOSE Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static final field WARN Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LogcatPriority;
+	public static fun values ()[Lio/github/desodre/adbutils/model/LogcatPriority;
 }
 
 public final class io/github/desodre/adbutils/model/MemoryHealth {

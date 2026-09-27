@@ -114,6 +114,26 @@ when (val battery = health.battery) {
 
 The snapshot collects battery, `/data` storage, memory, uptime, Android version and hardware sections concurrently. Every section has its own timeout and failure, so one unsupported or malformed source does not discard successful data. Sizes are bytes, uptime is milliseconds and battery temperature is tenths of a Celsius degree. Hardware serial properties are excluded unless `includeIdentifiers = true` is explicitly requested.
 
+## Screenshots and logcat
+
+```kotlin
+val png = device.screenshot()
+device.screenshotTo(Path.of("screen.png"))
+
+device.logcat(
+    LogcatOptions(
+        buffers = setOf(LogcatBuffer.MAIN, LogcatBuffer.SYSTEM),
+        filters = listOf(LogcatFilter("ActivityManager", LogcatPriority.INFO)),
+    ),
+).collect { entry ->
+    println("${entry.timestamp} ${entry.priority}/${entry.tag}: ${entry.message}")
+}
+```
+
+Screenshots use ADB's binary-safe raw `exec:screencap -p` service (the protocol behind CLI `exec-out`) and never create a remote file. The in-memory and `Path` APIs validate the PNG signature and enforce configurable limits; file output uses a temporary sibling and only replaces the destination after successful validation.
+
+`logcat()` is a cold, backpressured `Flow`. It supports validated buffer/filter selection plus structured `EPOCH` and message-only `RAW` formats. Lines split across ADB frames are reconstructed with a configurable bound. Cancelling collection closes the transport and stops the remote command.
+
 ## Current scope
 
 - Host version, long device listing and typed device selection.
@@ -121,6 +141,7 @@ The snapshot collects battery, `/data` storage, memory, uptime, Android version 
 - ADB SYNC v1 stat/list, in-memory transfers, streaming flows and local file sources/sinks.
 - Package install/uninstall and TCP forward/reverse.
 - Structured partial device-health snapshots with per-section timeouts.
+- Binary-safe screenshots and cancellable, bounded logcat streaming.
 - Text shell APIs reject malformed UTF-8; binary Shell v2 output is not exposed.
 - The SDK does not start the ADB Server.
 - The API is pre-1.0 and may change between minor versions.
@@ -135,7 +156,14 @@ Errors derive from `AdbException` and distinguish server availability, connectio
 ./gradlew validatePublication
 ```
 
-Unit and loopback TCP tests require no device. Real-device smoke tests must be explicitly enabled. Version 0.2.0 was exercised against a physical Android 16 device for tracking, shells, SYNC and forwarding.
+Unit and loopback TCP tests require no device. Hardware tests are opt-in and require an explicit serial; they build and install the repository-owned fixture APK, then clean packages, files and forwards even after known failures:
+
+```shell
+./gradlew adbTest -PadbTest=true -PadbSerial=DEVICE_SERIAL_EXAMPLE -PadbTargetKind=physical
+./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
+```
+
+See [device validation](docs/device-validation.md) for the required physical/emulator matrix and release evidence.
 
 `validatePublication` builds an unsigned Maven repository under `build/publication-check-repository` and verifies artifacts, checksums and required POM metadata. `consumerTest` resolves the standalone JVM sample exclusively through that repository. Kotlin explicit API mode and `checkKotlinAbi` protect the checked-in ABI baseline; run `./gradlew updateKotlinAbi` only after reviewing an intentional public API change.
 
@@ -151,7 +179,6 @@ Feature coverage and versions evolve independently in each ecosystem.
 
 ## Roadmap
 
-- Logcat as `Flow` and screenshots.
-- CLI, Compose Desktop and Kotlin Multiplatform/Native.
+See the [public Kanban](https://github.com/users/desodre/projects/8) for planned device/package tooling, CLI, Compose Desktop and Kotlin Multiplatform research.
 
 See [CHANGELOG.md](CHANGELOG.md). Licensed under the [MIT License](LICENSE).

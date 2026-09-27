@@ -19,3 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "adb-utils-android-sample"
 include(":app")
+include(":fixture")

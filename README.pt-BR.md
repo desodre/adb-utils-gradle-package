@@ -79,6 +79,7 @@ O timeout limita sessões finitas completas e a conexão TCP. Tracking não poss
 - `install`/`uninstall` via SYNC e Package Manager, sem subprocessos.
 - Forward/reverse TCP, listagem e remoção com endpoints tipados.
 - Snapshot estruturado de bateria, armazenamento, memória, uptime, Android e hardware.
+- Screenshot PNG binário sem arquivo remoto e logcat contínuo, limitado e cancelável.
 
 `devices()` inclui todos os estados. `device()` considera disponíveis somente entradas em estado `DEVICE`: zero produz `NoDevicesException` (com a lista detectada); uma é selecionada; duas ou mais produzem `MultipleDevicesException`, com os seriais. A seleção explícita diferencia serial ausente, offline, unauthorized e outros estados indisponíveis. Recovery, bootloader e sideload são modelados, mas não selecionáveis nesta milestone.
 
@@ -124,7 +125,7 @@ SYNC aceita caminhos de até 1024 bytes UTF-8. `pull()` mantém o limite padrão
 
 No Android, as sobrecargas baseadas em `java.nio.file.Path` exigem API 26 ou superior; as sobrecargas baseadas em Flow continuam disponíveis independentemente dos helpers para arquivos locais.
 
-`install()` envia o APK para `/data/local/tmp`, executa `pm install` por Shell v2 e tenta remover o temporário no final. O resultado informa sucesso e mensagem; a execução real de instalação não fez parte do smoke test 0.2 por não haver APK de fixture. `uninstall()` exige package name validado e lança `PackageOperationException` em falha.
+`install()` envia o APK para `/data/local/tmp`, executa `pm install` por Shell v2 e tenta remover o temporário no final. O resultado informa sucesso e mensagem; o smoke test instala, inicia e remove o APK fixture mantido no repositório. `uninstall()` exige package name validado e lança `PackageOperationException` em falha.
 
 Forward e reverse suportam somente endpoints `tcp:<port>` fixos nesta versão; porta zero e outros namespaces ainda não são aceitos. A remoção é responsabilidade do chamador.
 
@@ -142,6 +143,26 @@ when (val battery = health.battery) {
 ```
 
 Bateria, armazenamento de `/data`, memória, uptime, versão Android e hardware são coletados concorrentemente. Cada seção possui timeout e falha próprios, portanto uma fonte ausente, incompatível ou malformada não elimina os demais resultados. Tamanhos usam bytes, uptime usa milissegundos e temperatura da bateria usa décimos de grau Celsius. Seriais de hardware não são consultados por padrão; habilite explicitamente `includeIdentifiers = true` quando esse dado for necessário.
+
+## Screenshot e logcat
+
+```kotlin
+val png = device.screenshot()
+device.screenshotTo(Path.of("screen.png"))
+
+device.logcat(
+    LogcatOptions(
+        buffers = setOf(LogcatBuffer.MAIN, LogcatBuffer.SYSTEM),
+        filters = listOf(LogcatFilter("ActivityManager", LogcatPriority.INFO)),
+    ),
+).collect { entry ->
+    println("${entry.timestamp} ${entry.priority}/${entry.tag}: ${entry.message}")
+}
+```
+
+Screenshot usa o serviço binário `exec:screencap -p` (equivalente de protocolo ao `exec-out` da CLI), preserva os bytes e não cria arquivo no dispositivo. As duas APIs validam a assinatura PNG e aplicam limite configurável; `screenshotTo()` grava em arquivo temporário vizinho e só substitui o destino depois da validação.
+
+`logcat()` é um `Flow` frio com backpressure. A API aceita buffers e filtros validados, formato estruturado `EPOCH` ou somente mensagem `RAW`, recompõe linhas fragmentadas entre frames e limita o tamanho de cada linha. Cancelar a coleta fecha o transporte e encerra o comando remoto.
 
 ## Estrutura e erros
 
@@ -162,7 +183,6 @@ Erros distinguíveis: `AdbServerUnavailableException` (conexão recusada), `AdbC
 
 ## Roadmap (não implementado)
 
-- logcat com `Flow` e screenshot.
 - Suporte a endpoints de forward que não sejam TCP.
 - Inspeção de pacotes/processos e diagnósticos adicionais.
 - CLI e Compose Desktop sobre o SDK.
@@ -177,6 +197,13 @@ Para validar localmente os artefatos Maven, checksums e metadados obrigatórios:
 ```sh
 ./gradlew validatePublication
 ./gradlew checkKotlinAbi consumerTest
+```
+
+Testes com hardware exigem ativação e serial explícitos. A mesma suíte instala o APK fixture mantido no repositório e deve ser executada no dispositivo físico e nos emuladores definidos na [matriz de validação](docs/device-validation.md):
+
+```sh
+./gradlew adbTest -PadbTest=true -PadbSerial=DEVICE_SERIAL_EXAMPLE -PadbTargetKind=physical
+./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
 ```
 
 O repositório de validação sem assinatura fica em `build/publication-check-repository`; `consumerTest` resolve a amostra JVM somente por esse repositório. O modo de API explícita e `checkKotlinAbi` protegem a baseline pública versionada. Use `./gradlew updateKotlinAbi` apenas após revisar uma mudança intencional.

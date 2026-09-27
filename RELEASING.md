@@ -13,7 +13,8 @@ Releases follow Semantic Versioning and are immutable after publication on Maven
    ./gradlew clean build checkKotlinAbi consumerTest validatePublication
    ```
 
-5. Merge only after CI, consumer samples and publication validation pass.
+5. Execute the release-candidate suite on the required physical device and emulator matrix described in [docs/device-validation.md](docs/device-validation.md). Attach the report to the release-validation issue.
+6. Merge only after CI, consumer samples, publication validation and the hardware gate pass.
 
 The repository must contain `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY` and `SIGNING_PASSWORD` as GitHub Actions secrets.
 
