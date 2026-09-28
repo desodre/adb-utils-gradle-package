@@ -137,6 +137,10 @@ class RealAdbSmokeTest {
         try {
             step("fixture-install")
             device.install(Files.readAllBytes(fixtureApk), InstallOptions(replace = true))
+            val installedPath = device.shellV2("pm path '$packageName'")
+            println("ADB_TEST_FIXTURE_VISIBLE exit=${installedPath.exitCode} present=${installedPath.stdout.contains("package:")}")
+            val currentUser = device.shellV2("am get-current-user")
+            println("ADB_TEST_CURRENT_USER exit=${currentUser.exitCode} value=${currentUser.stdout.trim()}")
             step("fixture-logcat")
             kotlinx.coroutines.coroutineScope {
                 val marker = async(start = CoroutineStart.UNDISPATCHED) {
