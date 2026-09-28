@@ -141,6 +141,15 @@ class RealAdbSmokeTest {
             println("ADB_TEST_FIXTURE_VISIBLE exit=${installedPath.exitCode} present=${installedPath.stdout.contains("package:")}")
             val currentUser = device.shellV2("am get-current-user")
             println("ADB_TEST_CURRENT_USER exit=${currentUser.exitCode} value=${currentUser.stdout.trim()}")
+            val installedForUser = device.shellV2("pm list packages --user 0 '$packageName'")
+            println("ADB_TEST_FIXTURE_USER_0 exit=${installedForUser.exitCode} present=${installedForUser.stdout.contains("package:$packageName")}")
+            val packageDump = device.shellV2("dumpsys package '$packageName'")
+            println("ADB_TEST_FIXTURE_ACTIVITY_REGISTERED exit=${packageDump.exitCode} present=${packageDump.stdout.contains("FixtureActivity")}")
+            val resolvedActivity = device.shellV2(
+                "cmd package resolve-activity --brief -a android.intent.action.MAIN " +
+                    "-c android.intent.category.LAUNCHER -p '$packageName'",
+            )
+            println("ADB_TEST_FIXTURE_RESOLVED exit=${resolvedActivity.exitCode} value=${resolvedActivity.stdout.trim()}")
             step("fixture-logcat")
             kotlinx.coroutines.coroutineScope {
                 val marker = async(start = CoroutineStart.UNDISPATCHED) {
