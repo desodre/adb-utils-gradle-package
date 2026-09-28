@@ -40,6 +40,8 @@ Use a JDK supported by the Android Gradle Plugin (CI uses JDK 17):
 
 The task builds the minimal `samples/android/fixture` APK before executing the tests. Unit tests remain independent from Android SDK and ADB.
 
+On API 21, the device-side ADB daemon does not provide Shell v2. The suite records this as `ADB_TEST_LIMITATION`, exercises legacy shell and the remaining supported services, and verifies that health sections become unavailable instead of aborting the entire run. Shell v2, interactive shell and streamed logcat are exercised on newer targets.
+
 ## Covered behavior
 
 - Explicit discovery and serial selection.

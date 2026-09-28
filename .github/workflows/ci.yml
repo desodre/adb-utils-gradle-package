@@ -83,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api_level: [21, 35, 37]
+        api_level: [21, 35, '37.0']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
