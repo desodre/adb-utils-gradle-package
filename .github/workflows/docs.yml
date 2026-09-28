@@ -1,13 +1,6 @@
 name: Documentation
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/main/**"
-      - "build.gradle.kts"
-      - "VERSION"
-      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
