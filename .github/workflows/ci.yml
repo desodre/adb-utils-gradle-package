@@ -79,7 +79,11 @@ jobs:
 
   adb-integration:
     if: github.ref == 'refs/heads/dev'
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api_level: [21, 35, 37]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -100,7 +104,7 @@ jobs:
       - name: Run ADB integration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api_level }}
           target: google_apis
           arch: x86_64
           disable-animations: true
@@ -109,7 +113,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: adb-integration-report
+          name: adb-integration-report-api-${{ matrix.api_level }}
           path: |
             build/test-results/adbTest
             build/reports/tests/adbTest

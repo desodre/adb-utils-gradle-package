@@ -60,7 +60,7 @@ Commit:
 Library version:
 ADB Server version:
 Target kind:
-Serial:
+Serial: <redacted for physical devices; emulator serial only when applicable>
 Model:
 API level:
 ABI:

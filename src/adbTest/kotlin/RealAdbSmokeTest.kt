@@ -38,7 +38,7 @@ class RealAdbSmokeTest {
         val model = device.getprop("ro.product.model")
         val apiLevel = device.getprop("ro.build.version.sdk")
         val abi = device.getprop("ro.product.cpu.abi")
-        println("ADB_TEST_TARGET serial=$serial kind=$targetKind model=$model api=$apiLevel abi=$abi")
+        println("ADB_TEST_TARGET kind=$targetKind model=$model api=$apiLevel abi=$abi")
 
         step("finite-shell")
         assertEquals(7, device.shellV2("sh -c 'exit 7'").exitCode)
