@@ -113,7 +113,18 @@ jobs:
           disk-size: ${{ matrix.api_level == '37.0' && '4096M' || '' }}
           emulator-options: ${{ matrix.api_level == '37.0' && '-no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -no-metrics' || '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim' }}
           disable-animations: true
-          script: ./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
+          script: |
+            if [ "${{ matrix.api_level }}" = "37.0" ]; then
+              for attempt in $(seq 1 120); do
+                if adb -s emulator-5554 shell service check package | grep -q 'Service package: found'; then
+                  break
+                fi
+                sleep 2
+              done
+              adb -s emulator-5554 shell service check package | grep -q 'Service package: found'
+              adb -s emulator-5554 shell df -h /data
+            fi
+            ./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
       - name: Upload ADB test report
         if: always()
         uses: actions/upload-artifact@v4
