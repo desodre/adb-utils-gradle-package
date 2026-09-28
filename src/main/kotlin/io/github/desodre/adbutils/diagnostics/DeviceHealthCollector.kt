@@ -5,21 +5,12 @@ import io.github.desodre.adbutils.error.AdbException
 import io.github.desodre.adbutils.error.AdbServerUnavailableException
 import io.github.desodre.adbutils.error.AdbTimeoutException
 import io.github.desodre.adbutils.error.DeviceUnavailableException
-import io.github.desodre.adbutils.model.AndroidVersionInfo
-import io.github.desodre.adbutils.model.BatteryHealth
-import io.github.desodre.adbutils.model.DeviceHealthOptions
-import io.github.desodre.adbutils.model.DeviceHealthSnapshot
-import io.github.desodre.adbutils.model.DiagnosticFailure
-import io.github.desodre.adbutils.model.DiagnosticFailureKind
-import io.github.desodre.adbutils.model.HardwareInfo
-import io.github.desodre.adbutils.model.HealthSection
-import io.github.desodre.adbutils.model.MemoryHealth
-import io.github.desodre.adbutils.model.StorageHealth
-import io.github.desodre.adbutils.model.UptimeHealth
+import io.github.desodre.adbutils.model.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 internal object DeviceHealthCollector {
     suspend fun collect(device: AdbDevice, options: DeviceHealthOptions): DeviceHealthSnapshot = supervisorScope {
@@ -49,7 +40,7 @@ internal object DeviceHealthCollector {
         command: String,
         parser: (String) -> T,
     ): HealthSection<T> = try {
-        val value = withTimeoutOrNull(options.sectionTimeoutMillis) {
+        val value = withTimeoutOrNull(options.sectionTimeoutMillis.milliseconds) {
             val result = device.shellV2(command, options.maxOutputBytes)
             if (result.exitCode != 0) {
                 val detail = (result.stderr.ifBlank { result.stdout }).trim().take(MAX_ERROR_LENGTH)
@@ -111,7 +102,7 @@ internal object DeviceHealthCollector {
             }
         }
         return properties.joinToString("; ") { (alias, property) ->
-            "printf '$alias=%s\\n' \"${'$'}(getprop '$property')\""
+            $$"printf '$$alias=%s\\n' \"$(getprop '$$property')\""
         }
     }
 

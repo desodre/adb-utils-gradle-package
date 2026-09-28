@@ -11,6 +11,7 @@ import io.github.desodre.adbutils.model.*
 import io.github.desodre.adbutils.protocol.*
 import io.github.desodre.adbutils.transport.AdbTransport
 import io.github.desodre.adbutils.transport.jvm.JvmAdbTransport
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Each operation owns a fresh connection and closes it on success, failure or cancellation. */
 public class AdbClient(
@@ -54,7 +55,7 @@ public class AdbClient(
         timeoutMillis: Long = this.timeoutMillis.toLong(),
     ): DeviceInfo {
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
-        return withTimeoutOrNull(timeoutMillis) {
+        return withTimeoutOrNull(timeoutMillis.milliseconds) {
             trackDevices()
                 .first { devices -> devices.any { it.serial == serial && it.state == state } }
                 .first { it.serial == serial && it.state == state }
@@ -84,7 +85,7 @@ public class AdbClient(
     }
 
     internal suspend fun <T> session(block: suspend (AdbProtocol) -> T): T {
-        return withTimeoutOrNull(timeoutMillis.toLong()) { managedSession(block) } ?: throw AdbTimeoutException()
+        return withTimeoutOrNull(timeoutMillis.toLong().milliseconds) { managedSession(block) } ?: throw AdbTimeoutException()
     }
 
     internal suspend fun <T> streamingSession(block: suspend (AdbProtocol) -> T): T = managedSession(block)

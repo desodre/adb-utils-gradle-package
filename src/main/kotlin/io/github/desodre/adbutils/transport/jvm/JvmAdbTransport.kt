@@ -43,7 +43,11 @@ public class JvmAdbTransport(
     }
 
     override suspend fun close() {
-        try { socket.close() } catch (error: IOException) {
+        try {
+            withContext(Dispatchers.IO) {
+                socket.close()
+            }
+        } catch (error: IOException) {
             throw AdbConnectionException("Failed to close ADB TCP connection", error)
         }
     }

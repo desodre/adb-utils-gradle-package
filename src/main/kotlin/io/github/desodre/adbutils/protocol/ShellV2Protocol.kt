@@ -11,8 +11,36 @@ internal object ShellV2Protocol {
     private const val CLOSE_STDIN = 4
 
     sealed interface Frame {
-        data class Stdout(val data: ByteArray) : Frame
-        data class Stderr(val data: ByteArray) : Frame
+        data class Stdout(val data: ByteArray) : Frame {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as Stdout
+
+                return data.contentEquals(other.data)
+            }
+
+            override fun hashCode(): Int {
+                return data.contentHashCode()
+            }
+        }
+
+        data class Stderr(val data: ByteArray) : Frame {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as Stderr
+
+                return data.contentEquals(other.data)
+            }
+
+            override fun hashCode(): Int {
+                return data.contentHashCode()
+            }
+        }
+
         data class Exit(val exitCode: Int) : Frame
     }
 

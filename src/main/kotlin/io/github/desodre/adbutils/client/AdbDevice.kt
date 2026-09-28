@@ -18,7 +18,6 @@ import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -117,7 +116,7 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
 
     /**
      * Opens an owned, bidirectional Shell v2 session. An empty command starts the default shell.
-     * The returned session must reach remote exit or be cancelled by the caller.
+     * The returned session must reach remote exit or be canceled by the caller.
      */
     public suspend fun openInteractiveShell(
         command: String = "",
@@ -299,7 +298,7 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
             val result = shellV2("pm install $flags '$remote'")
             val message = (result.stdout + result.stderr).trim()
             if (result.exitCode != 0 || message.lineSequence().none { it.trim() == "Success" }) {
-                throw PackageOperationException(if (message.isEmpty()) "Package installation failed" else message)
+                throw PackageOperationException(message.ifEmpty { "Package installation failed" })
             }
             InstallResult(message)
         } catch (error: Throwable) {
@@ -317,7 +316,7 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
         val result = shellV2("pm uninstall ${if (keepData) "-k " else ""}'$packageName'")
         val message = (result.stdout + result.stderr).trim()
         if (result.exitCode != 0 || message.lineSequence().none { it.trim() == "Success" }) {
-            throw PackageOperationException(if (message.isEmpty()) "Package uninstall failed" else message)
+            throw PackageOperationException(message.ifEmpty { "Package uninstall failed" })
         }
     }
 

@@ -1,9 +1,11 @@
 package io.github.desodre.adbutils.protocol
 
-import io.github.desodre.adbutils.error.*
-import io.github.desodre.adbutils.model.*
+import io.github.desodre.adbutils.error.AdbFailException
+import io.github.desodre.adbutils.error.AdbProtocolException
+import io.github.desodre.adbutils.error.SyncTransferLimitException
+import io.github.desodre.adbutils.model.RemoteFile
+import io.github.desodre.adbutils.model.RemoteFileStat
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 
 internal class SyncProtocol(private val protocol: AdbProtocol) {

@@ -17,7 +17,25 @@ public enum class ShellOutputStream { STDOUT, STDERR }
 public data class ShellOutputChunk(
     public val stream: ShellOutputStream,
     public val data: ByteArray,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ShellOutputChunk
+
+        if (stream != other.stream) return false
+        if (!data.contentEquals(other.data)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = stream.hashCode()
+        result = 31 * result + data.contentHashCode()
+        return result
+    }
+}
 
 /** Terminal state of an interactive shell. */
 public sealed interface ShellTermination {
