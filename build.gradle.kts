@@ -33,13 +33,34 @@ configurations[adbTest.implementationConfigurationName].extendsFrom(configuratio
 configurations[adbTest.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
 dependencies.add(adbTest.implementationConfigurationName, sourceSets.main.get().output)
 
-tasks.register<Test>("adbTest") {
-    description = "Runs opt-in tests against a local ADB Server and physical device"
+val adbTestEnabled = providers.gradleProperty("adbTest").map(String::toBoolean).orElse(false)
+val buildAdbFixture = tasks.register<GradleBuild>("buildAdbFixture") {
+    description = "Builds the minimal Android fixture used by opt-in ADB integration tests"
     group = "verification"
+    dir = file("samples/android")
+    tasks = listOf(":fixture:assembleDebug")
+    onlyIf("ADB integration tests are explicitly enabled") { adbTestEnabled.get() }
+}
+
+tasks.register<Test>("adbTest") {
+    description = "Runs opt-in tests against one explicitly selected physical device or emulator"
+    group = "verification"
+    dependsOn(buildAdbFixture)
     testClassesDirs = adbTest.output.classesDirs
     classpath = adbTest.runtimeClasspath
     useJUnitPlatform()
-    onlyIf { providers.gradleProperty("adbTest").orNull == "true" }
+    onlyIf("ADB integration tests are explicitly enabled") { adbTestEnabled.get() }
+    outputs.upToDateWhen { false }
+    doFirst {
+        val serial = providers.gradleProperty("adbSerial").orNull
+        check(!serial.isNullOrBlank()) { "-PadbSerial=<serial> is required when -PadbTest=true" }
+        systemProperty("adb.serial", serial)
+        systemProperty(
+            "adb.fixture.apk",
+            layout.projectDirectory.file("samples/android/fixture/build/outputs/apk/debug/fixture-debug.apk").asFile.absolutePath,
+        )
+        systemProperty("adb.target.kind", providers.gradleProperty("adbTargetKind").orElse("unspecified").get())
+    }
 }
 
 @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)

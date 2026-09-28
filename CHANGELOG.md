@@ -12,6 +12,9 @@ All notable changes follow Semantic Versioning.
 - Added tag-driven Maven Central and GitHub Release automation.
 - Added Kotlin ABI validation, standalone consumer tests, Dokka Pages deployment and JVM/Android samples.
 - Added streaming SYNC pull/push, local `Path` sources and destinations, progress, configurable limits and metadata preservation.
+- Added binary-safe screenshot capture in memory and directly to local paths.
+- Added cancellable, backpressured logcat streaming with structured entries, validated filters and bounded lines.
+- Added an explicit-serial physical/emulator integration suite and a minimal repository-owned Android fixture.
 - Validated non-destructive operations with a physical Android device.
 
 ## 0.1.0 — 2026-09-07

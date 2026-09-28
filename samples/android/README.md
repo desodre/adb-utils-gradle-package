@@ -2,6 +2,8 @@
 
 This minimal application resolves `adb-utils` from Maven and connects directly to a reachable ADB Server over TCP.
 
+The `fixture` module is a deterministic test APK used by the root `adbTest` task for install, logcat, and screenshot validation. It is built automatically when the hardware test is enabled.
+
 For the Android emulator, `10.0.2.2` points to the development machine. The desktop ADB Server normally listens only on loopback, so exposing it to a device or emulator requires an intentional network configuration. Do not expose an ADB Server to an untrusted network.
 
 Build against the local publication repository:

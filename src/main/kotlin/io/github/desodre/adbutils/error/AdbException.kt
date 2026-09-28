@@ -19,5 +19,10 @@ public class ShellOutputLimitException(public val maxBytes: Int) : AdbException(
 public class ShellFrameLimitException(public val maxBytes: Int) : AdbException("Shell frame exceeded $maxBytes bytes")
 public class ShellV2UnsupportedException(cause: AdbFailException) :
     AdbException("Interactive Shell v2 is unavailable: ${cause.reason}", cause)
+public class ScreenshotLimitException(public val maxBytes: Long) : AdbException("Screenshot exceeded $maxBytes bytes")
+public class InvalidScreenshotException(message: String) : AdbException(message)
+public class LogcatLineLimitException(public val maxBytes: Int) : AdbException("Logcat line exceeded $maxBytes bytes")
+public class LogcatProcessException(public val exitCode: Int, public val stderr: String) :
+    AdbException("Logcat exited with code $exitCode${if (stderr.isBlank()) "" else ": ${stderr.trim()}"}")
 public class SyncTransferLimitException(public val maxBytes: Long) : AdbException("SYNC transfer exceeded $maxBytes bytes")
 public class PackageOperationException(message: String) : AdbException(message)
