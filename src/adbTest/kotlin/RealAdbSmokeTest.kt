@@ -1,6 +1,7 @@
 import io.github.desodre.adbutils.client.AdbClient
 import io.github.desodre.adbutils.client.AdbDevice
 import io.github.desodre.adbutils.error.AdbFailException
+import io.github.desodre.adbutils.error.ShellV2UnsupportedException
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.HealthSection
 import io.github.desodre.adbutils.model.InstallOptions
@@ -43,7 +44,7 @@ class RealAdbSmokeTest {
         println("ADB_TEST_TARGET kind=$targetKind model=$model api=$apiLevel abi=$abi")
 
         step("legacy-shell")
-        assertEquals("adb-utils-legacy", device.shell("printf adb-utils-legacy"))
+        assertEquals("adb-utils-legacy", device.shell("echo adb-utils-legacy").trim())
         step("finite-shell-v2")
         val shellV2Available = try {
             val result = device.shellV2("sh -c 'printf out; printf err >&2; exit 7'")
@@ -51,8 +52,8 @@ class RealAdbSmokeTest {
             assertEquals("err", result.stderr)
             assertEquals(7, result.exitCode)
             true
-        } catch (error: AdbFailException) {
-            if (apiLevel == "21" && error.reason == "closed") {
+        } catch (error: ShellV2UnsupportedException) {
+            if (apiLevel == "21" && (error.cause as? AdbFailException)?.reason == "closed") {
                 println("ADB_TEST_LIMITATION shell-v2-unavailable-on-api-21")
                 false
             } else throw error
@@ -69,7 +70,12 @@ class RealAdbSmokeTest {
 
         if (shellV2Available) step("interactive-shell") { validateInteractiveShell(device) }
         step("sync-and-forward") { validateSyncAndForwarding(device) }
-        step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk, shellV2Available) }
+        if (shellV2Available) {
+            step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk) }
+        } else {
+            println("ADB_TEST_LIMITATION package-and-logcat-require-shell-v2-on-api-21")
+            step("legacy-screenshot") { validateScreenshot(device) }
+        }
     }
 
     private suspend fun validateInteractiveShell(device: AdbDevice) {
@@ -121,54 +127,50 @@ class RealAdbSmokeTest {
         }
     }
 
-    private suspend fun validateFixtureScreenshotAndLogcat(
-        device: AdbDevice,
-        fixtureApk: Path,
-        shellV2Available: Boolean,
-    ) {
+    private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path) {
         val packageName = "io.github.desodre.adbutils.fixture"
         val component = "$packageName/.FixtureActivity"
-        step("fixture-clean-before")
-        runCatching { device.uninstall(packageName) }
+        step("fixture-preflight")
+        check(device.shell("pm path '$packageName'").lineSequence().none { it.startsWith("package:") }) {
+            "Fixture package is already installed; refusing to replace an existing app"
+        }
         try {
             step("fixture-install")
             device.install(Files.readAllBytes(fixtureApk), InstallOptions(replace = true))
-            if (shellV2Available) {
-                step("fixture-logcat")
-                kotlinx.coroutines.coroutineScope {
-                    val marker = async(start = CoroutineStart.UNDISPATCHED) {
-                        withTimeout(15_000) {
-                            device.logcat(
-                                LogcatOptions(
-                                    filters = listOf(LogcatFilter("AdbUtilsFixture", LogcatPriority.INFO)),
-                                ),
-                            ).first { it.message.contains("fixture-ready") }
-                        }
+            step("fixture-logcat")
+            kotlinx.coroutines.coroutineScope {
+                val marker = async(start = CoroutineStart.UNDISPATCHED) {
+                    withTimeout(15_000) {
+                        device.logcat(
+                            LogcatOptions(
+                                filters = listOf(LogcatFilter("AdbUtilsFixture", LogcatPriority.INFO)),
+                            ),
+                        ).first { it.message.contains("fixture-ready") }
                     }
-                    delay(500)
-                    val start = device.shellV2("am start -W -n '$component'")
-                    assertEquals(0, start.exitCode, start.stderr)
-                    assertEquals("fixture-ready", marker.await().message)
                 }
-            } else {
-                println("ADB_TEST_LIMITATION logcat-v2-unavailable-on-api-21")
-                device.shell("am start -W -n '$component'")
+                delay(500)
+                val start = device.shellV2("am start -W -n '$component'")
+                assertEquals(0, start.exitCode, start.stderr)
+                assertEquals("fixture-ready", marker.await().message)
             }
-
-            step("fixture-screenshot-memory")
-            val png = device.screenshot()
-            assertContentEquals(PNG_SIGNATURE, png.copyOf(PNG_SIGNATURE.size))
-            val destination = Files.createTempFile("adb-utils-device-", ".png")
-            try {
-                step("fixture-screenshot-path")
-                assertTrue(device.screenshotTo(destination) >= PNG_SIGNATURE.size)
-                assertContentEquals(PNG_SIGNATURE, Files.readAllBytes(destination).copyOf(PNG_SIGNATURE.size))
-            } finally {
-                Files.deleteIfExists(destination)
-            }
+            validateScreenshot(device)
         } finally {
             runCatching { device.shell("am force-stop '$packageName'") }
             runCatching { device.uninstall(packageName) }
+        }
+    }
+
+    private suspend fun validateScreenshot(device: AdbDevice) {
+        step("screenshot-memory")
+        val png = device.screenshot()
+        assertContentEquals(PNG_SIGNATURE, png.copyOf(PNG_SIGNATURE.size))
+        val destination = Files.createTempFile("adb-utils-device-", ".png")
+        try {
+            step("screenshot-path")
+            assertTrue(device.screenshotTo(destination) >= PNG_SIGNATURE.size)
+            assertContentEquals(PNG_SIGNATURE, Files.readAllBytes(destination).copyOf(PNG_SIGNATURE.size))
+        } finally {
+            Files.deleteIfExists(destination)
         }
     }
 

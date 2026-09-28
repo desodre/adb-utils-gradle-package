@@ -47,7 +47,11 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
         validateCommand(command, maxOutputBytes)
         return client.session { protocol ->
             selectTransport(protocol)
-            protocol.request("shell,v2,raw:$command")
+            try {
+                protocol.request("shell,v2,raw:$command")
+            } catch (error: AdbFailException) {
+                throw ShellV2UnsupportedException(error)
+            }
             ShellV2Protocol.read(protocol, maxOutputBytes)
         }
     }
