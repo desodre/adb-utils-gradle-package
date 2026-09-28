@@ -110,6 +110,7 @@ jobs:
           profile: ${{ matrix.api_level == '37.0' && 'pixel' || '' }}
           ram-size: ${{ matrix.api_level == '37.0' && '3072M' || '' }}
           heap-size: ${{ matrix.api_level == '37.0' && '512M' || '' }}
+          disk-size: ${{ matrix.api_level == '37.0' && '4096M' || '' }}
           emulator-options: ${{ matrix.api_level == '37.0' && '-no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -no-metrics' || '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim' }}
           disable-animations: true
           script: ./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
