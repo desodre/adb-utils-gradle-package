@@ -150,7 +150,7 @@ class RealAdbSmokeTest {
                 }
                 delay(500)
                 val start = device.shellV2("am start -W -n '$component'")
-                assertEquals(0, start.exitCode, start.stderr)
+                assertEquals(0, start.exitCode, "stdout=${start.stdout}; stderr=${start.stderr}")
                 assertEquals("fixture-ready", marker.await().message)
             }
             validateScreenshot(device)
