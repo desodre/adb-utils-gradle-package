@@ -9,6 +9,17 @@ fi
 api_level="$1"
 adb version
 
+dump_emulator_failure() {
+  result=$?
+  if (( result != 0 )) && [[ "$api_level" == "37.0" ]]; then
+    echo "Filtered Android 17 logcat after integration failure:" >&2
+    adb -s emulator-5554 logcat -d -v brief -s \
+      ActivityManager ActivityTaskManager AndroidRuntime DEBUG libc tombstoned \
+      | tail -n 120 || true
+  fi
+}
+trap dump_emulator_failure EXIT
+
 if [[ "$api_level" == "37.0" ]]; then
   package_service_ready=false
   for attempt in {1..120}; do
