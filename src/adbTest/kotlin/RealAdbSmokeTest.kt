@@ -173,7 +173,8 @@ class RealAdbSmokeTest {
                         }
                         val output = start.stdout + start.stderr
                         val transientEmulatorFailure = apiLevel == "37" &&
-                            (output.contains("Error type 3") || output.contains("Broken pipe"))
+                            (output.contains("Error type 3") || output.contains("Broken pipe") ||
+                                output.contains("Can't find service: activity"))
                         assertTrue(transientEmulatorFailure, "Activity launch failed: exit=${start.exitCode} output=$output")
                         println("ADB_TEST_ACTIVITY_RETRY attempt=$attempt")
                         delay(2_000)
