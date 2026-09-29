@@ -108,7 +108,7 @@ jobs:
           target: ${{ matrix.api_level == '37.0' && 'google_apis_ps16k' || 'google_apis' }}
           arch: x86_64
           profile: ${{ matrix.api_level == '37.0' && 'pixel' || '' }}
-          ram-size: ${{ matrix.api_level == '37.0' && '4096M' || '' }}
+          ram-size: ${{ matrix.api_level == '37.0' && '6144M' || '' }}
           heap-size: ${{ matrix.api_level == '37.0' && '512M' || '' }}
           disk-size: ${{ matrix.api_level == '37.0' && '4096M' || '' }}
           emulator-options: ${{ matrix.api_level == '37.0' && '-no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -no-metrics' || '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim' }}
