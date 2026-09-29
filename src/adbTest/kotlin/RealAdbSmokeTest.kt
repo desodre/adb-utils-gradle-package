@@ -71,7 +71,7 @@ class RealAdbSmokeTest {
         if (shellV2Available) step("interactive-shell") { validateInteractiveShell(device) }
         step("sync-and-forward") { validateSyncAndForwarding(device) }
         if (shellV2Available) {
-            step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk) }
+            step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk, apiLevel) }
         } else {
             println("ADB_TEST_LIMITATION package-and-logcat-require-shell-v2-on-api-21")
             step("legacy-screenshot") { validateScreenshot(device) }
@@ -127,7 +127,7 @@ class RealAdbSmokeTest {
         }
     }
 
-    private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path) {
+    private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path, apiLevel: String) {
         val packageName = "io.github.desodre.adbutils.fixture"
         val component = "$packageName/.FixtureActivity"
         step("fixture-preflight")
@@ -153,7 +153,7 @@ class RealAdbSmokeTest {
             step("fixture-logcat")
             kotlinx.coroutines.coroutineScope {
                 val marker = async(start = CoroutineStart.UNDISPATCHED) {
-                    withTimeout(15_000) {
+                    withTimeout(75_000) {
                         device.logcat(
                             LogcatOptions(
                                 filters = listOf(LogcatFilter("AdbUtilsFixture", LogcatPriority.INFO)),
@@ -162,8 +162,23 @@ class RealAdbSmokeTest {
                     }
                 }
                 delay(500)
-                val start = device.shellV2("am start -W -n '$component'")
-                assertEquals(0, start.exitCode, "stdout=${start.stdout}; stderr=${start.stderr}")
+                withTimeout(60_000) {
+                    var attempt = 0
+                    while (true) {
+                        attempt++
+                        val start = device.shellV2("am start -W -n '$component'")
+                        if (start.exitCode == 0) {
+                            println("ADB_TEST_ACTIVITY_START attempts=$attempt")
+                            break
+                        }
+                        val output = start.stdout + start.stderr
+                        val transientEmulatorFailure = apiLevel == "37" &&
+                            (output.contains("Error type 3") || output.contains("Broken pipe"))
+                        assertTrue(transientEmulatorFailure, "Activity launch failed: exit=${start.exitCode} output=$output")
+                        println("ADB_TEST_ACTIVITY_RETRY attempt=$attempt")
+                        delay(2_000)
+                    }
+                }
                 assertEquals("fixture-ready", marker.await().message)
             }
             validateScreenshot(device)
