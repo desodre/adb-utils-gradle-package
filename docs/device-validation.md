@@ -1,6 +1,6 @@
 # Device validation gate
 
-Run this gate after all release-candidate changes have merged and the normal CI is green. The suite talks directly to the already-running ADB Server; it never starts `adb` and never chooses a target implicitly.
+Run this gate after all release-candidate changes have merged and the normal CI is green, except for a release-specific environment waiver explicitly approved and recorded as described in [RELEASING.md](../RELEASING.md). The suite talks directly to the already-running ADB Server; it never starts `adb` and never chooses a target implicitly.
 
 ## Safety and prerequisites
 
@@ -70,4 +70,4 @@ Result:
 Known limitation / linked issue:
 ```
 
-The gate fails while a confirmed P0/P1 regression is open. Environment failures must be distinguished from library failures and retried after the environment is corrected.
+The gate fails while a confirmed P0/P1 library regression is open. Environment failures must be distinguished from library failures, linked to an investigation issue and retried after the environment is corrected. An approved waiver does not make the affected CI job green or close its investigation.
