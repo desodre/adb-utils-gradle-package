@@ -20,7 +20,7 @@ Esta é a implementação Kotlin/JVM da família adb-utils. A implementação Da
 ./gradlew build
 ```
 
-O artefato fica em `build/libs/adb-utils-0.2.0.jar`. A automação da primeira publicação no Maven Central está pronta; até a tag ser publicada, use `./gradlew publishToMavenLocal` ou o repositório local de validação. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
+O artefato fica em `build/libs/adb-utils-0.2.0.jar` e a versão `0.2.0` está disponível no [Maven Central](https://central.sonatype.com/artifact/io.github.desodre/adb-utils/0.2.0) como `io.github.desodre:adb-utils:0.2.0`. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
 
 ## Exemplo mínimo
 

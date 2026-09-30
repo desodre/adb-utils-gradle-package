@@ -14,15 +14,13 @@ This is the Kotlin/JVM implementation in the adb-utils family. The independently
 
 ## Installation
 
-Release automation is prepared for these Maven Central coordinates:
+Version 0.2.0 is available on [Maven Central](https://central.sonatype.com/artifact/io.github.desodre/adb-utils/0.2.0):
 
 ```kotlin
 dependencies {
     implementation("io.github.desodre:adb-utils:0.2.0")
 }
 ```
-
-Until the first tagged release is published, use `./gradlew publishToMavenLocal` or the generated validation repository.
 
 ## Quick start
 
