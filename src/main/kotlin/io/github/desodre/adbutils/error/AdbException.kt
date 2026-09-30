@@ -18,7 +18,7 @@ public class DeviceOfflineException(serial: DeviceSerial, cause: Throwable? = nu
 public class ShellOutputLimitException(public val maxBytes: Int) : AdbException("Shell output exceeded $maxBytes bytes")
 public class ShellFrameLimitException(public val maxBytes: Int) : AdbException("Shell frame exceeded $maxBytes bytes")
 public class ShellV2UnsupportedException(cause: AdbFailException) :
-    AdbException("Interactive Shell v2 is unavailable: ${cause.reason}", cause)
+    AdbException("Shell v2 is unavailable: ${cause.reason}", cause)
 public class ScreenshotLimitException(public val maxBytes: Long) : AdbException("Screenshot exceeded $maxBytes bytes")
 public class InvalidScreenshotException(message: String) : AdbException(message)
 public class LogcatLineLimitException(public val maxBytes: Int) : AdbException("Logcat line exceeded $maxBytes bytes")

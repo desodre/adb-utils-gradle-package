@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="RealAdbSmokeTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-09-28T21:50:15.473Z" hostname="redacted" time="6.545">
+  <properties/>
+  <testcase name="release candidate smoke test on explicit target()" classname="RealAdbSmokeTest" time="6.534"/>
+  <system-out><![CDATA[ADB_TEST_TARGET kind=physical model=SM-G990E api=36 abi=arm64-v8a
+ADB_TEST_STEP legacy-shell
+ADB_TEST_STEP finite-shell-v2
+ADB_TEST_STEP health
+ADB_TEST_STEP interactive-shell
+ADB_TEST_STEP interactive-shell passed
+ADB_TEST_STEP sync-and-forward
+ADB_TEST_STEP sync-and-forward passed
+ADB_TEST_STEP fixture-screenshot-logcat
+ADB_TEST_STEP fixture-preflight
+ADB_TEST_STEP fixture-install
+ADB_TEST_STEP fixture-logcat
+ADB_TEST_STEP screenshot-memory
+ADB_TEST_STEP screenshot-path
+ADB_TEST_STEP fixture-screenshot-logcat passed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

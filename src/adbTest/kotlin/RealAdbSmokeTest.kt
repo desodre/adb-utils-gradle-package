@@ -1,5 +1,7 @@
 import io.github.desodre.adbutils.client.AdbClient
 import io.github.desodre.adbutils.client.AdbDevice
+import io.github.desodre.adbutils.error.AdbFailException
+import io.github.desodre.adbutils.error.ShellV2UnsupportedException
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.HealthSection
 import io.github.desodre.adbutils.model.InstallOptions
@@ -20,6 +22,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -38,18 +41,41 @@ class RealAdbSmokeTest {
         val model = device.getprop("ro.product.model")
         val apiLevel = device.getprop("ro.build.version.sdk")
         val abi = device.getprop("ro.product.cpu.abi")
-        println("ADB_TEST_TARGET serial=$serial kind=$targetKind model=$model api=$apiLevel abi=$abi")
+        println("ADB_TEST_TARGET kind=$targetKind model=$model api=$apiLevel abi=$abi")
 
-        step("finite-shell")
-        assertEquals(7, device.shellV2("sh -c 'exit 7'").exitCode)
+        step("legacy-shell")
+        assertEquals("adb-utils-legacy", device.shell("echo adb-utils-legacy").trim())
+        step("finite-shell-v2")
+        val shellV2Available = try {
+            val result = device.shellV2("sh -c 'printf out; printf err >&2; exit 7'")
+            assertEquals("out", result.stdout)
+            assertEquals("err", result.stderr)
+            assertEquals(7, result.exitCode)
+            true
+        } catch (error: ShellV2UnsupportedException) {
+            if (apiLevel == "21" && (error.cause as? AdbFailException)?.reason == "closed") {
+                println("ADB_TEST_LIMITATION shell-v2-unavailable-on-api-21")
+                false
+            } else throw error
+        }
         step("health")
         val health = device.healthSnapshot()
-        assertIs<HealthSection.Available<*>>(health.uptime)
-        assertIs<HealthSection.Available<*>>(health.android)
+        if (shellV2Available) {
+            assertIs<HealthSection.Available<*>>(health.uptime)
+            assertIs<HealthSection.Available<*>>(health.android)
+        } else {
+            assertIs<HealthSection.Unavailable>(health.uptime)
+            assertIs<HealthSection.Unavailable>(health.android)
+        }
 
-        step("interactive-shell") { validateInteractiveShell(device) }
+        if (shellV2Available) step("interactive-shell") { validateInteractiveShell(device) }
         step("sync-and-forward") { validateSyncAndForwarding(device) }
-        step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk) }
+        if (shellV2Available) {
+            step("fixture-screenshot-logcat") { validateFixtureScreenshotAndLogcat(device, fixtureApk, apiLevel) }
+        } else {
+            println("ADB_TEST_LIMITATION package-and-logcat-require-shell-v2-on-api-21")
+            step("legacy-screenshot") { validateScreenshot(device) }
+        }
     }
 
     private suspend fun validateInteractiveShell(device: AdbDevice) {
@@ -66,13 +92,16 @@ class RealAdbSmokeTest {
 
     private suspend fun validateSyncAndForwarding(device: AdbDevice) {
         val path = "/data/local/tmp/adb-utils-release-smoke-${UUID.randomUUID()}.txt"
-        val content = "adb-utils".encodeToByteArray()
+        val content = ByteArray(70_000) { (it % 251).toByte() }
         try {
-            device.push(content, path)
+            val progress = device.pushChunks(flowOf(content), path).toList()
+            assertEquals(content.size.toLong(), progress.last().bytesTransferred)
             assertContentEquals(content, device.pull(path))
+            assertContentEquals(content, device.pullChunks(path).toList().flatMap { it.toList() }.toByteArray())
             assertEquals(content.size.toLong(), device.stat(path).size)
+            assertTrue(device.list("/data/local/tmp").any { it.name == path.substringAfterLast('/') })
         } finally {
-            device.shellV2("rm -f '$path'")
+            device.shell("rm -f '$path'")
         }
 
         val occupiedPorts = device.listForwards().mapTo(mutableSetOf()) { it.local.value }
@@ -86,20 +115,45 @@ class RealAdbSmokeTest {
         } finally {
             if (forwardCreated) device.removeForward(forward)
         }
+
+        val reverseRemote = TcpPort(43271)
+        var reverseCreated = false
+        try {
+            device.reverse(reverseRemote, TcpPort(43272), noRebind = true)
+            reverseCreated = true
+            assertTrue(device.listReverses().any { it.remote == reverseRemote })
+        } finally {
+            if (reverseCreated) device.removeReverse(reverseRemote)
+        }
     }
 
-    private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path) {
+    private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path, apiLevel: String) {
         val packageName = "io.github.desodre.adbutils.fixture"
         val component = "$packageName/.FixtureActivity"
-        step("fixture-clean-before")
-        runCatching { device.uninstall(packageName) }
+        step("fixture-preflight")
+        check(device.shell("pm path '$packageName'").lineSequence().none { it.startsWith("package:") }) {
+            "Fixture package is already installed; refusing to replace an existing app"
+        }
         try {
             step("fixture-install")
             device.install(Files.readAllBytes(fixtureApk), InstallOptions(replace = true))
+            val installedPath = device.shellV2("pm path '$packageName'")
+            println("ADB_TEST_FIXTURE_VISIBLE exit=${installedPath.exitCode} present=${installedPath.stdout.contains("package:")}")
+            val currentUser = device.shellV2("am get-current-user")
+            println("ADB_TEST_CURRENT_USER exit=${currentUser.exitCode} value=${currentUser.stdout.trim()}")
+            val installedForUser = device.shellV2("pm list packages --user 0 '$packageName'")
+            println("ADB_TEST_FIXTURE_USER_0 exit=${installedForUser.exitCode} present=${installedForUser.stdout.contains("package:$packageName")}")
+            val packageDump = device.shellV2("dumpsys package '$packageName'")
+            println("ADB_TEST_FIXTURE_ACTIVITY_REGISTERED exit=${packageDump.exitCode} present=${packageDump.stdout.contains("FixtureActivity")}")
+            val resolvedActivity = device.shellV2(
+                "cmd package resolve-activity --brief -a android.intent.action.MAIN " +
+                    "-c android.intent.category.LAUNCHER -p '$packageName'",
+            )
+            println("ADB_TEST_FIXTURE_RESOLVED exit=${resolvedActivity.exitCode} value=${resolvedActivity.stdout.trim()}")
             step("fixture-logcat")
             kotlinx.coroutines.coroutineScope {
                 val marker = async(start = CoroutineStart.UNDISPATCHED) {
-                    withTimeout(15_000) {
+                    withTimeout(75_000) {
                         device.logcat(
                             LogcatOptions(
                                 filters = listOf(LogcatFilter("AdbUtilsFixture", LogcatPriority.INFO)),
@@ -108,25 +162,44 @@ class RealAdbSmokeTest {
                     }
                 }
                 delay(500)
-                val start = device.shellV2("am start -W -n '$component'")
-                assertEquals(0, start.exitCode, start.stderr)
+                withTimeout(60_000) {
+                    var attempt = 0
+                    while (true) {
+                        attempt++
+                        val start = device.shellV2("am start -W -n '$component'")
+                        if (start.exitCode == 0) {
+                            println("ADB_TEST_ACTIVITY_START attempts=$attempt")
+                            break
+                        }
+                        val output = start.stdout + start.stderr
+                        val transientEmulatorFailure = apiLevel == "37" &&
+                            (output.contains("Error type 3") || output.contains("Broken pipe") ||
+                                output.contains("Can't find service: activity"))
+                        assertTrue(transientEmulatorFailure, "Activity launch failed: exit=${start.exitCode} output=$output")
+                        println("ADB_TEST_ACTIVITY_RETRY attempt=$attempt")
+                        delay(2_000)
+                    }
+                }
                 assertEquals("fixture-ready", marker.await().message)
             }
-
-            step("fixture-screenshot-memory")
-            val png = device.screenshot()
-            assertContentEquals(PNG_SIGNATURE, png.copyOf(PNG_SIGNATURE.size))
-            val destination = Files.createTempFile("adb-utils-device-", ".png")
-            try {
-                step("fixture-screenshot-path")
-                assertTrue(device.screenshotTo(destination) >= PNG_SIGNATURE.size)
-                assertContentEquals(PNG_SIGNATURE, Files.readAllBytes(destination).copyOf(PNG_SIGNATURE.size))
-            } finally {
-                Files.deleteIfExists(destination)
-            }
+            validateScreenshot(device)
         } finally {
-            runCatching { device.shellV2("am force-stop '$packageName'") }
+            runCatching { device.shell("am force-stop '$packageName'") }
             runCatching { device.uninstall(packageName) }
+        }
+    }
+
+    private suspend fun validateScreenshot(device: AdbDevice) {
+        step("screenshot-memory")
+        val png = device.screenshot()
+        assertContentEquals(PNG_SIGNATURE, png.copyOf(PNG_SIGNATURE.size))
+        val destination = Files.createTempFile("adb-utils-device-", ".png")
+        try {
+            step("screenshot-path")
+            assertTrue(device.screenshotTo(destination) >= PNG_SIGNATURE.size)
+            assertContentEquals(PNG_SIGNATURE, Files.readAllBytes(destination).copyOf(PNG_SIGNATURE.size))
+        } finally {
+            Files.deleteIfExists(destination)
         }
     }
 

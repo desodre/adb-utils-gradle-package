@@ -1,6 +1,6 @@
 # Device validation gate
 
-Run this gate after all release-candidate changes have merged and the normal CI is green. The suite talks directly to the already-running ADB Server; it never starts `adb` and never chooses a target implicitly.
+Run this gate after all release-candidate changes have merged and the normal CI is green, except for a release-specific environment waiver explicitly approved and recorded as described in [RELEASING.md](../RELEASING.md). The suite talks directly to the already-running ADB Server; it never starts `adb` and never chooses a target implicitly.
 
 ## Safety and prerequisites
 
@@ -40,6 +40,8 @@ Use a JDK supported by the Android Gradle Plugin (CI uses JDK 17):
 
 The task builds the minimal `samples/android/fixture` APK before executing the tests. Unit tests remain independent from Android SDK and ADB.
 
+On API 21, the device-side ADB daemon does not provide Shell v2. The suite records this as `ADB_TEST_LIMITATION`, exercises legacy shell, SYNC, forwarding and screenshots where supported, and verifies that health sections become unavailable instead of aborting the entire run. Shell v2, interactive shell, package installation and streamed logcat are exercised on API 24 or newer; package operations currently require Shell v2.
+
 ## Covered behavior
 
 - Explicit discovery and serial selection.
@@ -60,7 +62,7 @@ Commit:
 Library version:
 ADB Server version:
 Target kind:
-Serial:
+Serial: <redacted for physical devices; emulator serial only when applicable>
 Model:
 API level:
 ABI:
@@ -68,4 +70,4 @@ Result:
 Known limitation / linked issue:
 ```
 
-The gate fails while a confirmed P0/P1 regression is open. Environment failures must be distinguished from library failures and retried after the environment is corrected.
+The gate fails while a confirmed P0/P1 library regression is open. Environment failures must be distinguished from library failures, linked to an investigation issue and retried after the environment is corrected. An approved waiver does not make the affected CI job green or close its investigation.

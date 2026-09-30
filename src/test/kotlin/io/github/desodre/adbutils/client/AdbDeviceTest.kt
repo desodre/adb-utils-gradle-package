@@ -88,4 +88,12 @@ class AdbDeviceTest {
         assertEquals(7, result.exitCode)
         assertEquals(listOf("0010host:transport:a", "0011shell,v2,raw:test"), transport.requests)
     }
+
+    @Test fun `shell v2 unsupported device has a typed error and closes connection`() = runBlocking<Unit> {
+        val transport = FakeTransport("OKAYFAIL0006closed")
+        val device = AdbDevice(AdbClient(transportFactory = { transport }), DeviceSerial("a"))
+        val error = assertFailsWith<ShellV2UnsupportedException> { device.shellV2("id") }
+        assertEquals("closed", (error.cause as AdbFailException).reason)
+        assertTrue(transport.closed)
+    }
 }

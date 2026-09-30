@@ -79,7 +79,11 @@ jobs:
 
   adb-integration:
     if: github.ref == 'refs/heads/dev'
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api_level: [21, 35, '37.0']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -100,16 +104,21 @@ jobs:
       - name: Run ADB integration tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          target: google_apis
+          api-level: ${{ matrix.api_level }}
+          target: ${{ matrix.api_level == '37.0' && 'google_apis_ps16k' || 'google_apis' }}
           arch: x86_64
+          profile: ${{ matrix.api_level == '37.0' && 'pixel' || '' }}
+          ram-size: ${{ matrix.api_level == '37.0' && '6144M' || '' }}
+          heap-size: ${{ matrix.api_level == '37.0' && '512M' || '' }}
+          disk-size: ${{ matrix.api_level == '37.0' && '4096M' || '' }}
+          emulator-options: ${{ matrix.api_level == '37.0' && '-no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim -no-metrics' || '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim' }}
           disable-animations: true
-          script: ./gradlew adbTest -PadbTest=true -PadbSerial=emulator-5554 -PadbTargetKind=emulator
+          script: bash scripts/run-adb-integration.sh ${{ matrix.api_level }}
       - name: Upload ADB test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: adb-integration-report
+          name: adb-integration-report-api-${{ matrix.api_level }}
           path: |
             build/test-results/adbTest
             build/reports/tests/adbTest

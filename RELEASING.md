@@ -14,7 +14,7 @@ Releases follow Semantic Versioning and are immutable after publication on Maven
    ```
 
 5. Execute the release-candidate suite on the required physical device and emulator matrix described in [docs/device-validation.md](docs/device-validation.md). Attach the report to the release-validation issue.
-6. Merge only after CI, consumer samples, publication validation and the hardware gate pass.
+6. Merge only after CI, consumer samples, publication validation and the hardware gate pass. A failed CI job may be waived for this release only when the owner explicitly approves a documented environment-only exception in the release-validation issue: identify the failing job and linked investigation, show that the equivalent device suite passes locally, confirm the remaining CI jobs pass, and explain why there is no confirmed library regression. Never waive a failed library test or an open P0/P1 library regression.
 
 The repository must contain `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY` and `SIGNING_PASSWORD` as GitHub Actions secrets.
 
