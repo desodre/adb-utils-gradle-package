@@ -1,5 +1,7 @@
 # adb-utils
-
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.desodre/adb-utils.svg)](
+https://central.sonatype.com/artifact/io.github.desodre/adb-utils
+)
 [English](README.md) · [Português (Brasil)](README.pt-BR.md)
 
 An early Kotlin/JVM SDK that communicates directly with the local Android Debug Bridge server over its TCP smart-socket protocol, normally at `127.0.0.1:5037`. It does not spawn the `adb` executable or use `ProcessBuilder`.

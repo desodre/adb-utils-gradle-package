@@ -1,5 +1,7 @@
 # adb-utils
-
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.desodre/adb-utils.svg)](
+https://central.sonatype.com/artifact/io.github.desodre/adb-utils
+)
 [English](README.md) · [Português (Brasil)](README.pt-BR.md)
 
 Biblioteca Kotlin/JVM para comunicação direta com o ADB Server por TCP, normalmente em `127.0.0.1:5037`. **Versão atual: `0.2.0`, API ainda sujeita a mudanças.**
