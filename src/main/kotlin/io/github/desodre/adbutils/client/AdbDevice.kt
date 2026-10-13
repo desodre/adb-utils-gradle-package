@@ -7,6 +7,8 @@ import io.github.desodre.adbutils.model.ShellResult
 import io.github.desodre.adbutils.protocol.AdbCodec
 import io.github.desodre.adbutils.protocol.ShellV2Protocol
 import io.github.desodre.adbutils.protocol.SyncProtocol
+import io.github.desodre.adbutils.protocol.parseEndpoint
+import io.github.desodre.adbutils.protocol.validateEndpoint
 import io.github.desodre.adbutils.model.*
 import java.io.ByteArrayOutputStream
 import java.nio.file.AtomicMoveNotSupportedException
@@ -324,46 +326,86 @@ public class AdbDevice internal constructor(private val client: AdbClient, publi
         }
     }
 
-    public suspend fun forward(local: TcpPort, remote: TcpPort, noRebind: Boolean = false): Unit {
-        client.hostCommand("host-serial:$serial:forward:${if (noRebind) "norebind:" else ""}$local;$remote")
+    public suspend fun forward(local: TcpPort, remote: TcpPort, noRebind: Boolean = false): Unit =
+        forward(local as AdbEndpoint, remote as AdbEndpoint, noRebind)
+
+    /** Registers a mapping, not a debugger session. A JDWP target may fail only when a socket attaches. */
+    public suspend fun forward(local: AdbEndpoint, remote: AdbEndpoint, noRebind: Boolean = false): Unit {
+        validateEndpoint(local, "forward", "local")
+        validateEndpoint(remote, "forward", "remote", remoteForward = true)
+        forwardCommand("host-serial:$serial:forward:${if (noRebind) "norebind:" else ""}$local;$remote")
     }
 
-    public suspend fun removeForward(local: TcpPort): Unit {
-        client.hostCommand("host-serial:$serial:killforward:$local")
+    public suspend fun removeForward(local: TcpPort): Unit = removeForward(local as AdbEndpoint)
+
+    public suspend fun removeForward(local: AdbEndpoint): Unit {
+        validateEndpoint(local, "removeForward", "local")
+        forwardCommand("host-serial:$serial:killforward:$local")
     }
 
-    public suspend fun listForwards(): List<PortForward> = client.hostPayload("host:list-forward")
+    /** Compatibility view containing TCP-to-TCP mappings only. See [listForwardMappings] for all endpoints. */
+    public suspend fun listForwards(): List<PortForward> = listForwardMappings().mapNotNull {
+        val local = it.local as? TcpPort
+        val remote = it.remote as? TcpPort
+        if (local != null && remote != null) PortForward(it.serial, local, remote) else null
+    }
+
+    public suspend fun listForwardMappings(): List<ForwardMapping> = client.hostPayload("host:list-forward")
         .lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
-            val fields = line.split(Regex("\\s+"))
-            if (fields.size != 3 || fields[0] != serial.value) null else PortForward(serial, parseTcp(fields[1]), parseTcp(fields[2]))
+            val fields = line.trim().split(Regex("\\s+"))
+            if (fields.first() != serial.value) return@mapNotNull null
+            if (fields.size != 3) throw AdbProtocolException("Malformed forward entry: $line")
+            ForwardMapping(serial, parseEndpoint(fields[1]), parseEndpoint(fields[2]))
         }.toList()
 
-    public suspend fun reverse(remote: TcpPort, local: TcpPort, noRebind: Boolean = false): Unit = deviceCommand(
-        "reverse:forward:${if (noRebind) "norebind:" else ""}$remote;$local",
-    )
+    public suspend fun reverse(remote: TcpPort, local: TcpPort, noRebind: Boolean = false): Unit =
+        reverse(remote as AdbEndpoint, local as AdbEndpoint, noRebind)
 
-    public suspend fun removeReverse(remote: TcpPort): Unit = deviceCommand("reverse:killforward:$remote")
+    public suspend fun reverse(remote: AdbEndpoint, local: AdbEndpoint, noRebind: Boolean = false): Unit {
+        validateEndpoint(remote, "reverse", "remote")
+        validateEndpoint(local, "reverse", "local")
+        reverseCommand("reverse:forward:${if (noRebind) "norebind:" else ""}$remote;$local")
+    }
 
-    public suspend fun listReverses(): List<ReverseForward> = client.session { protocol ->
+    public suspend fun removeReverse(remote: TcpPort): Unit = removeReverse(remote as AdbEndpoint)
+
+    public suspend fun removeReverse(remote: AdbEndpoint): Unit {
+        validateEndpoint(remote, "removeReverse", "remote")
+        reverseCommand("reverse:killforward:$remote")
+    }
+
+    /** Compatibility view containing TCP-to-TCP mappings only. */
+    public suspend fun listReverses(): List<ReverseForward> = listReverseMappings().mapNotNull {
+        val remote = it.remote as? TcpPort
+        val local = it.local as? TcpPort
+        if (remote != null && local != null) ReverseForward(remote, local) else null
+    }
+
+    public suspend fun listReverseMappings(): List<ReverseMapping> = client.session { protocol ->
         selectTransport(protocol)
         protocol.request("reverse:list-forward")
         protocol.readPayload().lineSequence().filter { it.isNotBlank() }.map { line ->
-            val fields = line.split(Regex("\\s+"))
+            val fields = line.trim().split(Regex("\\s+"))
             if (fields.size !in 2..3) throw AdbProtocolException("Malformed reverse forward entry: $line")
-            if (fields.size == 2) return@map ReverseForward(parseTcp(fields[0]), parseTcp(fields[1]))
-            ReverseForward(parseTcp(fields[1]), parseTcp(fields[2]))
+            ReverseMapping(parseEndpoint(fields[fields.size - 2]), parseEndpoint(fields.last()))
         }.toList()
     }
 
-    private suspend fun deviceCommand(service: String) = client.session { protocol ->
-        selectTransport(protocol)
-        protocol.request(service)
+    private suspend fun forwardCommand(service: String) {
+        AdbCodec.encodeRequest(service) // Validate the UTF-8 request size before opening a connection.
+        client.session { protocol ->
+            protocol.request(service)
+            protocol.readStatus() // Host connect status followed by operation status.
+        }
     }
 
-    private fun parseTcp(value: String): TcpPort {
-        if (!value.startsWith("tcp:")) throw AdbProtocolException("Unsupported endpoint: $value")
-        return value.removePrefix("tcp:").toIntOrNull()?.let(::TcpPort)
-            ?: throw AdbProtocolException("Invalid TCP endpoint: $value")
+    private suspend fun reverseCommand(service: String) {
+        AdbCodec.encodeRequest(service)
+        client.session { protocol ->
+            selectTransport(protocol)
+            protocol.request(service)
+            protocol.readStatus() // Service connect status followed by the daemon's operation status.
+        }
     }
 
     private suspend fun <T> sync(block: suspend (SyncProtocol) -> T): T = client.session { protocol ->

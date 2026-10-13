@@ -34,14 +34,14 @@ class PackageAndForwardTest {
     }
 
     @Test fun `forward reverse list and remove encode services`() = runBlocking<Unit> {
-        val forward = FakeTransport("OKAY")
+        val forward = FakeTransport("OKAYOKAY")
         val listingPayload = "a tcp:7000 tcp:8000\nb tcp:1 tcp:2\n"
         val listing = FakeTransport("OKAY" + listingPayload.length.toString(16).padStart(4, '0') + listingPayload)
-        val remove = FakeTransport("OKAY")
-        val reverse = FakeTransport("OKAYOKAY")
+        val remove = FakeTransport("OKAYOKAY")
+        val reverse = FakeTransport("OKAYOKAYOKAY")
         val reversePayload = "host tcp:9000 tcp:10000\n"
         val reverseList = FakeTransport("OKAYOKAY" + reversePayload.length.toString(16).padStart(4, '0') + reversePayload)
-        val reverseRemove = FakeTransport("OKAYOKAY")
+        val reverseRemove = FakeTransport("OKAYOKAYOKAY")
         val queue = ArrayDeque(listOf(forward, listing, remove, reverse, reverseList, reverseRemove))
         val device = AdbDevice(AdbClient(transportFactory = { queue.removeFirst() }), DeviceSerial("a"))
         device.forward(TcpPort(7000), TcpPort(8000), true)

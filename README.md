@@ -97,7 +97,7 @@ SYNC paths are limited to 1,024 UTF-8 bytes. `pull()` retains its convenient 64 
 
 On Android, the overloads based on `java.nio.file.Path` require API 26 or newer; the Flow-based overloads remain available independently of local-file helpers.
 
-Version 0.2.0 supports fixed TCP forwarding endpoints. Callers must remove mappings they create.
+Published version 0.2.0 supports fixed TCP forwarding endpoints. Development version 0.3.0 adds typed JDWP and non-TCP endpoints; see [forwarding and debugger attachment](docs/forwarding.md). Callers must remove mappings they create. Version 0.3.0 is not yet published.
 
 ## Device health
 

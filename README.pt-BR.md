@@ -22,7 +22,7 @@ Esta é a implementação Kotlin/JVM da família adb-utils. A implementação Da
 ./gradlew build
 ```
 
-O artefato fica em `build/libs/adb-utils-0.2.0.jar` e a versão `0.2.0` está disponível no [Maven Central](https://central.sonatype.com/artifact/io.github.desodre/adb-utils/0.2.0) como `io.github.desodre:adb-utils:0.2.0`. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
+O build de desenvolvimento gera `build/libs/adb-utils-0.3.0.jar` (ainda não publicado). A versão `0.2.0` está disponível no [Maven Central](https://central.sonatype.com/artifact/io.github.desodre/adb-utils/0.2.0) como `io.github.desodre:adb-utils:0.2.0`. O JAR não empacota Kotlin stdlib ou Coroutines; o POM fornece essas dependências transitivas aos consumidores.
 
 ## Exemplo mínimo
 
@@ -129,7 +129,7 @@ No Android, as sobrecargas baseadas em `java.nio.file.Path` exigem API 26 ou sup
 
 `install()` envia o APK para `/data/local/tmp`, executa `pm install` por Shell v2 e tenta remover o temporário no final. O resultado informa sucesso e mensagem; o smoke test instala, inicia e remove o APK fixture mantido no repositório. `uninstall()` exige package name validado e lança `PackageOperationException` em falha.
 
-Forward e reverse suportam somente endpoints `tcp:<port>` fixos nesta versão; porta zero e outros namespaces ainda não são aceitos. A remoção é responsabilidade do chamador.
+A versão publicada 0.2.0 suporta apenas endpoints TCP fixos. A versão de desenvolvimento 0.3.0 adiciona `JdwpPid`, `LocalAbstract`, `LocalReserved`, `LocalFilesystem`, `DeviceFile` e `RawDeviceFile`, com validação de papéis e novas listagens tipadas. Porta zero continua não suportada. A remoção é responsabilidade do chamador. Veja a [matriz de suporte e o exemplo de depuração](docs/forwarding.md).
 
 ## Diagnóstico de saúde
 
@@ -185,7 +185,6 @@ Erros distinguíveis: `AdbServerUnavailableException` (conexão recusada), `AdbC
 
 ## Roadmap (não implementado)
 
-- Suporte a endpoints de forward que não sejam TCP.
 - Inspeção de pacotes/processos e diagnósticos adicionais.
 - CLI e Compose Desktop sobre o SDK.
 - Avaliar Kotlin Multiplatform/Native.

@@ -26,3 +26,8 @@ public class LogcatProcessException(public val exitCode: Int, public val stderr:
     AdbException("Logcat exited with code $exitCode${if (stderr.isBlank()) "" else ": ${stderr.trim()}"}")
 public class SyncTransferLimitException(public val maxBytes: Long) : AdbException("SYNC transfer exceeded $maxBytes bytes")
 public class PackageOperationException(message: String) : AdbException(message)
+public class UnsupportedEndpointException(
+    public val endpoint: AdbEndpoint,
+    public val operation: String,
+    public val role: String,
+) : AdbException("Endpoint $endpoint is unsupported for $operation ($role)")
