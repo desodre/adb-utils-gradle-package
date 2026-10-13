@@ -12,6 +12,8 @@ public final class io/github/desodre/adbutils/client/AdbClient {
 }
 
 public final class io/github/desodre/adbutils/client/AdbDevice {
+	public final fun forward (Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun forward$default (Lio/github/desodre/adbutils/client/AdbDevice;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun forward-C3Gbq2o (IIZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun forward-C3Gbq2o$default (Lio/github/desodre/adbutils/client/AdbDevice;IIZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun getSerial-_Mf9vZg ()Ljava/lang/String;
@@ -21,7 +23,9 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public final fun install ([BLio/github/desodre/adbutils/model/InstallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun install$default (Lio/github/desodre/adbutils/client/AdbDevice;[BLio/github/desodre/adbutils/model/InstallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun list (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun listForwardMappings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listForwards (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun listReverseMappings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun listReverses (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun logcat (Lio/github/desodre/adbutils/model/LogcatOptions;)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun logcat$default (Lio/github/desodre/adbutils/client/AdbDevice;Lio/github/desodre/adbutils/model/LogcatOptions;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
@@ -39,8 +43,12 @@ public final class io/github/desodre/adbutils/client/AdbDevice {
 	public static synthetic fun push$default (Lio/github/desodre/adbutils/client/AdbDevice;[BLjava/lang/String;IJLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun pushChunks (Lkotlinx/coroutines/flow/Flow;Ljava/lang/String;IJJ)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun pushChunks$default (Lio/github/desodre/adbutils/client/AdbDevice;Lkotlinx/coroutines/flow/Flow;Ljava/lang/String;IJJILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public final fun removeForward (Lio/github/desodre/adbutils/model/AdbEndpoint;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun removeForward-gpHeikU (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun removeReverse (Lio/github/desodre/adbutils/model/AdbEndpoint;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun removeReverse-gpHeikU (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun reverse (Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun reverse$default (Lio/github/desodre/adbutils/client/AdbDevice;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun reverse-C3Gbq2o (IIZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun reverse-C3Gbq2o$default (Lio/github/desodre/adbutils/client/AdbDevice;IIZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun screenshot (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -170,6 +178,16 @@ public final class io/github/desodre/adbutils/error/SyncTransferLimitException :
 	public final fun getMaxBytes ()J
 }
 
+public final class io/github/desodre/adbutils/error/UnsupportedEndpointException : io/github/desodre/adbutils/error/AdbException {
+	public fun <init> (Lio/github/desodre/adbutils/model/AdbEndpoint;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun getEndpoint ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun getOperation ()Ljava/lang/String;
+	public final fun getRole ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/desodre/adbutils/model/AdbEndpoint {
+}
+
 public final class io/github/desodre/adbutils/model/AdbVersion {
 	public static final synthetic fun box-impl (I)Lio/github/desodre/adbutils/model/AdbVersion;
 	public static fun constructor-impl (I)I
@@ -258,6 +276,17 @@ public final class io/github/desodre/adbutils/model/BatteryStatus : java/lang/En
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/desodre/adbutils/model/BatteryStatus;
 	public static fun values ()[Lio/github/desodre/adbutils/model/BatteryStatus;
+}
+
+public final class io/github/desodre/adbutils/model/DeviceFile : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/desodre/adbutils/model/DeviceFile;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/DeviceFile;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/DeviceFile;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/desodre/adbutils/model/DeviceHealthOptions {
@@ -379,6 +408,21 @@ public final class io/github/desodre/adbutils/model/DiagnosticFailureKind : java
 	public static fun values ()[Lio/github/desodre/adbutils/model/DiagnosticFailureKind;
 }
 
+public final class io/github/desodre/adbutils/model/ForwardMapping {
+	public synthetic fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-_Mf9vZg ()Ljava/lang/String;
+	public final fun component2 ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun component3 ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun copy-dBDWlXA (Ljava/lang/String;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;)Lio/github/desodre/adbutils/model/ForwardMapping;
+	public static synthetic fun copy-dBDWlXA$default (Lio/github/desodre/adbutils/model/ForwardMapping;Ljava/lang/String;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/ForwardMapping;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocal ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun getRemote ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun getSerial-_Mf9vZg ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/HardwareInfo {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -466,6 +510,50 @@ public final class io/github/desodre/adbutils/model/InteractiveShellOptions {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxFrameBytes ()I
 	public final fun getOutputBufferCapacity ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/JdwpPid : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/desodre/adbutils/model/JdwpPid;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/JdwpPid;IILjava/lang/Object;)Lio/github/desodre/adbutils/model/JdwpPid;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LocalAbstract : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LocalAbstract;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LocalAbstract;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/LocalAbstract;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LocalFilesystem : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LocalFilesystem;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LocalFilesystem;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/LocalFilesystem;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/LocalReserved : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/desodre/adbutils/model/LocalReserved;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/LocalReserved;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/LocalReserved;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -599,6 +687,17 @@ public final class io/github/desodre/adbutils/model/PortForward {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/desodre/adbutils/model/RawDeviceFile : io/github/desodre/adbutils/model/AdbEndpoint {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/desodre/adbutils/model/RawDeviceFile;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/RawDeviceFile;Ljava/lang/String;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/RawDeviceFile;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/desodre/adbutils/model/RemoteFile {
 	public fun <init> (Ljava/lang/String;Lio/github/desodre/adbutils/model/RemoteFileStat;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -636,6 +735,19 @@ public final class io/github/desodre/adbutils/model/ReverseForward {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getLocal-_x09xr0 ()I
 	public final fun getRemote-_x09xr0 ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/desodre/adbutils/model/ReverseMapping {
+	public fun <init> (Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;)V
+	public final fun component1 ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun component2 ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun copy (Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;)Lio/github/desodre/adbutils/model/ReverseMapping;
+	public static synthetic fun copy$default (Lio/github/desodre/adbutils/model/ReverseMapping;Lio/github/desodre/adbutils/model/AdbEndpoint;Lio/github/desodre/adbutils/model/AdbEndpoint;ILjava/lang/Object;)Lio/github/desodre/adbutils/model/ReverseMapping;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocal ()Lio/github/desodre/adbutils/model/AdbEndpoint;
+	public final fun getRemote ()Lio/github/desodre/adbutils/model/AdbEndpoint;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -749,7 +861,7 @@ public final class io/github/desodre/adbutils/model/SyncTransferResult {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class io/github/desodre/adbutils/model/TcpPort {
+public final class io/github/desodre/adbutils/model/TcpPort : io/github/desodre/adbutils/model/AdbEndpoint {
 	public static final synthetic fun box-impl (I)Lio/github/desodre/adbutils/model/TcpPort;
 	public static fun constructor-impl (I)I
 	public fun equals (Ljava/lang/Object;)Z
@@ -761,6 +873,14 @@ public final class io/github/desodre/adbutils/model/TcpPort {
 	public fun toString ()Ljava/lang/String;
 	public static fun toString-impl (I)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()I
+}
+
+public final class io/github/desodre/adbutils/model/UnknownEndpoint : io/github/desodre/adbutils/model/AdbEndpoint {
+	public final fun component1 ()Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/desodre/adbutils/model/UptimeHealth {

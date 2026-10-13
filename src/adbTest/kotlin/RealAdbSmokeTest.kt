@@ -5,12 +5,22 @@ import io.github.desodre.adbutils.error.ShellV2UnsupportedException
 import io.github.desodre.adbutils.model.DeviceSerial
 import io.github.desodre.adbutils.model.HealthSection
 import io.github.desodre.adbutils.model.InstallOptions
+import io.github.desodre.adbutils.model.JdwpPid
+import io.github.desodre.adbutils.model.LocalAbstract
 import io.github.desodre.adbutils.model.LogcatFilter
 import io.github.desodre.adbutils.model.LogcatOptions
 import io.github.desodre.adbutils.model.LogcatPriority
 import io.github.desodre.adbutils.model.ShellOutputStream
 import io.github.desodre.adbutils.model.ShellTermination
 import io.github.desodre.adbutils.model.TcpPort
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.EOFException
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.SocketException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
@@ -20,6 +30,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -27,6 +38,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
 
 class RealAdbSmokeTest {
     @Test fun `release candidate smoke test on explicit target`() = runBlocking<Unit> {
@@ -130,6 +142,9 @@ class RealAdbSmokeTest {
     private suspend fun validateFixtureScreenshotAndLogcat(device: AdbDevice, fixtureApk: Path, apiLevel: String) {
         val packageName = "io.github.desodre.adbutils.fixture"
         val component = "$packageName/.FixtureActivity"
+        val abstractEndpoint = LocalAbstract("adb-utils-fixture-${UUID.randomUUID()}")
+        val readyPrefix = "fixture-ready:${abstractEndpoint.name}:pid="
+        var fixturePid: JdwpPid? = null
         step("fixture-preflight")
         check(device.shell("pm path '$packageName'").lineSequence().none { it.startsWith("package:") }) {
             "Fixture package is already installed; refusing to replace an existing app"
@@ -158,7 +173,7 @@ class RealAdbSmokeTest {
                             LogcatOptions(
                                 filters = listOf(LogcatFilter("AdbUtilsFixture", LogcatPriority.INFO)),
                             ),
-                        ).first { it.message.contains("fixture-ready") }
+                        ).first { it.message.startsWith(readyPrefix) }
                     }
                 }
                 delay(500)
@@ -166,7 +181,9 @@ class RealAdbSmokeTest {
                     var attempt = 0
                     while (true) {
                         attempt++
-                        val start = device.shellV2("am start -W -n '$component'")
+                        val start = device.shellV2(
+                            "am start -W -n '$component' --es forward_socket '${abstractEndpoint.name}'",
+                        )
                         if (start.exitCode == 0) {
                             println("ADB_TEST_ACTIVITY_START attempts=$attempt")
                             break
@@ -180,14 +197,133 @@ class RealAdbSmokeTest {
                         delay(2_000)
                     }
                 }
-                assertEquals("fixture-ready", marker.await().message)
+                fixturePid = JdwpPid(marker.await().message.removePrefix(readyPrefix).trim().toInt())
             }
+            step("jdwp-handshake") { validateJdwpHandshake(device, checkNotNull(fixturePid)) }
+            step("abstract-forward-echo") { validateAbstractForward(device, abstractEndpoint) }
+            step("abstract-reverse-echo") { validateAbstractReverse(device, component) }
             validateScreenshot(device)
+            step("jdwp-terminated-target") {
+                device.shell("am force-stop '$packageName'")
+                validateTerminatedJdwpTarget(device, checkNotNull(fixturePid))
+            }
         } finally {
             runCatching { device.shell("am force-stop '$packageName'") }
             runCatching { device.uninstall(packageName) }
         }
     }
+
+    private suspend fun validateJdwpHandshake(device: AdbDevice, pid: JdwpPid) {
+        val local = unusedHostPort()
+        var created = false
+        try {
+            device.forward(local, pid, noRebind = true)
+            created = true
+            assertTrue(device.listForwardMappings().any { it.local == local && it.remote == pid })
+            assertTrue(device.listForwards().none { it.local == local }, "Legacy listing must retain only TCP/TCP mappings")
+            withContext(Dispatchers.IO) { jdwpHandshake(local) }
+        } finally {
+            if (created) device.removeForward(local)
+        }
+    }
+
+    private suspend fun validateTerminatedJdwpTarget(device: AdbDevice, pid: JdwpPid) {
+        val local = unusedHostPort()
+        var created = false
+        try {
+            // Some servers reject here; others install the listener and reject only when a client attaches.
+            try {
+                device.forward(local, pid, noRebind = true)
+                created = true
+            } catch (error: AdbFailException) {
+                assertTrue(
+                    listOf("jdwp", "pid", "process").any { error.reason.contains(it, ignoreCase = true) },
+                    "Forward registration failed for a reason unrelated to the terminated JDWP target: ${error.reason}",
+                )
+                return
+            }
+            val failure = withContext(Dispatchers.IO) { runCatching { jdwpHandshake(local) }.exceptionOrNull() }
+            assertTrue(
+                failure is EOFException || failure is SocketException,
+                "A terminated JDWP target must close/reset the connection, not accept a handshake or time out; result=$failure",
+            )
+        } finally {
+            if (created) device.removeForward(local)
+        }
+    }
+
+    private fun jdwpHandshake(local: TcpPort) {
+        connectHost(local).use { socket ->
+            val handshake = "JDWP-Handshake".encodeToByteArray()
+            socket.getOutputStream().write(handshake)
+            socket.getOutputStream().flush()
+            val reply = ByteArray(handshake.size)
+            DataInputStream(socket.getInputStream()).readFully(reply)
+            assertContentEquals(handshake, reply)
+        }
+    }
+
+    private suspend fun validateAbstractForward(device: AdbDevice, remote: LocalAbstract) {
+        val local = unusedHostPort()
+        var created = false
+        try {
+            device.forward(local, remote, noRebind = true)
+            created = true
+            assertTrue(device.listForwardMappings().any { it.local == local && it.remote == remote })
+            assertTrue(device.listForwards().none { it.local == local })
+            withContext(Dispatchers.IO) { connectHost(local).use(::assertEcho) }
+        } finally {
+            if (created) device.removeForward(local)
+        }
+    }
+
+    private suspend fun validateAbstractReverse(device: AdbDevice, component: String) {
+        val remote = LocalAbstract("adb-utils-reverse-${UUID.randomUUID()}")
+        ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { server ->
+            server.soTimeout = SOCKET_TIMEOUT_MILLIS
+            val local = TcpPort(server.localPort)
+            var created = false
+            try {
+                device.reverse(remote, local, noRebind = true)
+                created = true
+                assertTrue(device.listReverseMappings().any { it.remote == remote && it.local == local })
+                assertTrue(device.listReverses().none { it.local == local })
+                val start = device.shellV2(
+                    "am start -W -f 0x20000000 -n '$component' --es reverse_socket '${remote.name}'",
+                )
+                assertEquals(0, start.exitCode, "Cannot request fixture reverse connection")
+                withContext(Dispatchers.IO) {
+                    server.accept().use { socket ->
+                        socket.soTimeout = SOCKET_TIMEOUT_MILLIS
+                        assertEcho(socket)
+                    }
+                }
+            } finally {
+                if (created) device.removeReverse(remote)
+            }
+        }
+    }
+
+    private fun assertEcho(socket: Socket) {
+        val message = "adb-utils-echo-${UUID.randomUUID()}"
+        val output = DataOutputStream(socket.getOutputStream())
+        output.writeUTF(message)
+        output.flush()
+        assertEquals(message, DataInputStream(socket.getInputStream()).readUTF())
+    }
+
+    private fun connectHost(port: TcpPort): Socket = Socket().apply {
+        try {
+            soTimeout = SOCKET_TIMEOUT_MILLIS
+            connect(InetSocketAddress("127.0.0.1", port.value), SOCKET_TIMEOUT_MILLIS)
+        } catch (error: Throwable) {
+            close()
+            throw error
+        }
+    }
+
+    private fun unusedHostPort(): TcpPort =
+        ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { TcpPort(it.localPort) }
 
     private suspend fun validateScreenshot(device: AdbDevice) {
         step("screenshot-memory")
@@ -218,6 +354,7 @@ class RealAdbSmokeTest {
     }
 
     private companion object {
+        const val SOCKET_TIMEOUT_MILLIS: Int = 10_000
         val PNG_SIGNATURE: ByteArray = byteArrayOf(
             0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
         )

@@ -2,6 +2,14 @@
 
 All notable changes follow Semantic Versioning.
 
+## 0.3.0 — Unreleased
+
+- Added typed JDWP, abstract, reserved and filesystem sockets, and device/raw-device forward destinations.
+- Added role validation before connecting, typed forward/reverse listings and endpoint-based removal.
+- Preserved TCP methods and models; legacy listings now return only TCP-to-TCP mappings.
+- Consume the complete ADB forward/reverse operation status, including failures and truncated responses.
+- Added real JDWP handshake, terminated-process rejection and abstract socket forward/reverse echo integration tests.
+
 ## 0.2.0 — 2026-09-23
 
 - Added Shell v2 with separated output streams and exit code.

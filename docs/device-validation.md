@@ -49,6 +49,7 @@ On API 21, the device-side ADB daemon does not provide Shell v2. The suite recor
 - Health snapshot with partial-section semantics.
 - SYNC stat/push/pull and remote cleanup.
 - Forward creation, listing and cleanup.
+- On Shell-v2-capable targets: real `JDWP-Handshake` against the debuggable fixture, failure to attach after process termination, and framed data echo over abstract forward/reverse mappings. Each uses unique names, bounded socket I/O and mapping cleanup. Legacy listings must omit these non-TCP mappings.
 - Fixture installation, launch, log marker and uninstall.
 - Binary screenshot in memory and to a local path.
 - Filtered logcat streaming and cancellation after the marker is observed.

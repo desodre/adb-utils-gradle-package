@@ -6,6 +6,10 @@ import io.github.desodre.adbutils.transport.AdbTransport
 internal class AdbProtocol(private val transport: AdbTransport) {
     suspend fun request(service: String) {
         transport.write(AdbCodec.encodeRequest(service))
+        readStatus()
+    }
+
+    suspend fun readStatus() {
         when (AdbCodec.decodeText(readExactly(4))) {
             "OKAY" -> Unit
             "FAIL" -> throw AdbFailException(readPayload())
